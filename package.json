@@ -17,7 +17,8 @@
     "test:adversarial": "vitest run tests/adversarial",
     "verify:citations": "tsx bench/citations/verify.ts",
     "measure:payload": "bench/baseline/measure-payload.sh",
-    "content": "velite build"
+    "content": "velite build",
+    "eval:retrieval": "tsx bench/retrieval/eval.ts --k 5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.3",

@@ -1,0 +1,28 @@
+{
+  "k": 5,
+  "chunks": 34,
+  "runs": [
+    {
+      "config": "lexical only",
+      "backend": "none (lexical only)",
+      "queries": 30,
+      "recallAtK": 0.9333333333333333,
+      "mrr": 0.7288888888888889,
+      "misses": [
+        "what happens when two compactions run at once",
+        "what are the weaknesses of the coding plugin"
+      ]
+    },
+    {
+      "config": "hybrid (local trigram)",
+      "backend": "local-trigram",
+      "queries": 30,
+      "recallAtK": 0.9666666666666667,
+      "mrr": 0.8305555555555555,
+      "misses": [
+        "what happens when two compactions run at once"
+      ]
+    }
+  ],
+  "measuredAt": "2026-08-21"
+}

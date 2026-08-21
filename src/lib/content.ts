@@ -5,7 +5,7 @@
  * error rather than several runtime surprises. Drafts are filtered at this
  * boundary, meaning no page or derivation can accidentally publish one.
  */
-import { notes as allNotes, work as allWork } from "../../.velite/index.js";
+import { notes as allNotes, work as allWork } from "../../.velite/index";
 
 export type Work = (typeof allWork)[number];
 export type Note = (typeof allNotes)[number];

@@ -7,7 +7,7 @@
  * that forced this.
  */
 
-import { normalise } from "./normalise.js";
+import { normalise } from "./normalise";
 
 export interface IndexedDocument {
   /** Stable id used in citation tokens, e.g. "work/experience-studio". */

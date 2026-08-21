@@ -8,9 +8,9 @@
  * This is success criteria 1 and 2 from docs/02-thesis.md.
  */
 
-import { findBoundaryIssues } from "./inline-boundary.js";
-import { buildFragment, findOccurrences, normalise } from "./normalise.js";
-import type { PassageIndex } from "./passage-index.js";
+import { findBoundaryIssues } from "./inline-boundary";
+import { buildFragment, findOccurrences, normalise } from "./normalise";
+import type { PassageIndex } from "./passage-index";
 
 export interface Citation {
   /** Where this citation was authored, for error messages. */
