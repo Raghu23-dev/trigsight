@@ -1,5 +1,6 @@
 import { chunkDocument, type Chunk } from "../../../lib/retrieval/chunk";
 import { LocalTrigramBackend, Retriever } from "../../../lib/retrieval/retrieve";
+import { upstashFromEnv } from "../../../lib/retrieval/upstash";
 import { work } from "../../../lib/content";
 
 /**
@@ -42,7 +43,11 @@ function getRetriever(): Retriever {
       ...chunkDocument({ docId: w.id, docTitle: w.title, path: w.path, body: w.raw }),
     );
   }
-  retriever = new Retriever(chunks, new LocalTrigramBackend(chunks));
+  // Real embeddings when configured, the deterministic stand-in otherwise. The stand-in
+  // is not a semantic model, so this is a genuine downgrade rather than a fallback of
+  // equal quality — but lexical-only retrieval still answers, which beats failing.
+  const vector = upstashFromEnv() ?? new LocalTrigramBackend(chunks);
+  retriever = new Retriever(chunks, vector);
   return retriever;
 }
 

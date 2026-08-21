@@ -24,6 +24,22 @@ export const runtime = "nodejs";
 const PROTOCOL_VERSION = "2026-07-28";
 const SERVER = { name: "trigsight", version: "0.1.0" } as const;
 
+/**
+ * Conformance note.
+ *
+ * This route was originally written from summary notes and violated 6 of 8 MUST
+ * requirements of revision 2026-07-28 — found by auditing it with mcpgauntlet, not by
+ * review. The violations were: GET returned content instead of 405, a POST without
+ * MCP-Protocol-Version was accepted, a header contradicting the body was accepted, an
+ * unknown method returned 200 instead of 404/-32601, `initialize` was answered while
+ * advertising a revision that removed it, and a notification returned 200 instead of 202.
+ *
+ * Each rule below cites its clause so the next reader can check the claim rather than
+ * trust this comment.
+ */
+const JSONRPC_METHOD_NOT_FOUND = -32601;
+const JSONRPC_HEADER_MISMATCH = -32020;
+
 let tools: Tools | null = null;
 
 function getTools(origin: string): Tools {
@@ -72,21 +88,73 @@ export async function POST(request: Request): Promise<Response> {
 
   const id = body.id ?? null;
   const base = new URL(request.url).origin;
+  const method = typeof body.method === "string" ? body.method : "";
 
-  switch (body.method) {
-    case "initialize":
-      return rpcResult(id, {
-        protocolVersion: PROTOCOL_VERSION,
-        capabilities: { tools: {} },
-        serverInfo: SERVER,
-        instructions:
-          "Verification tools for one engineer's documented work. Prefer find_evidence over assuming a capability: it returns quoted passages with deep links, or states plainly that no evidence exists. Quote returned passages directly rather than paraphrasing them.",
-      });
+  // Every POST MUST carry MCP-Protocol-Version, and it MUST match the body's _meta.
+  // Spec: Request Metadata / Protocol Version Header.
+  const versionHeader = request.headers.get("mcp-protocol-version");
+  if (versionHeader === null) {
+    return rpcError(
+      id,
+      JSONRPC_HEADER_MISMATCH,
+      "missing required MCP-Protocol-Version header",
+      400,
+    );
+  }
+  const bodyVersion = (body.params?._meta as Record<string, unknown> | undefined)?.[
+    "io.modelcontextprotocol/protocolVersion"
+  ];
+  if (typeof bodyVersion === "string" && bodyVersion !== versionHeader) {
+    return rpcError(
+      id,
+      JSONRPC_HEADER_MISMATCH,
+      `MCP-Protocol-Version header ${versionHeader} does not match body value ${bodyVersion}`,
+      400,
+    );
+  }
+  if (versionHeader !== PROTOCOL_VERSION) {
+    return rpcError(
+      id,
+      JSONRPC_HEADER_MISMATCH,
+      `unsupported protocol version ${versionHeader}`,
+      400,
+      { supported: [PROTOCOL_VERSION] },
+    );
+  }
 
-    // Stateless transport: no session to acknowledge, but clients still send this.
-    case "notifications/initialized":
-      return new Response(null, { status: 202 });
+  // Mcp-Method and Mcp-Name mirror body fields. A mismatch is a security issue per the
+  // spec's own reasoning: an intermediary may route on the header while the server
+  // executes on the body. Spec: Server Validation, error -32020.
+  const methodHeader = request.headers.get("mcp-method");
+  if (methodHeader !== null && methodHeader !== method) {
+    return rpcError(
+      id,
+      JSONRPC_HEADER_MISMATCH,
+      `Mcp-Method header ${methodHeader} does not match body method ${method}`,
+      400,
+    );
+  }
+  const nameHeader = decodeHeaderValue(request.headers.get("mcp-name"));
+  const bodyName = body.params?.name ?? body.params?.uri;
+  if (nameHeader !== null && typeof bodyName === "string" && nameHeader !== bodyName) {
+    return rpcError(
+      id,
+      JSONRPC_HEADER_MISMATCH,
+      `Mcp-Name header ${nameHeader} does not match body value ${bodyName}`,
+      400,
+    );
+  }
 
+  // A notification has no id, so there is nowhere to put a response body.
+  // Spec: Sending Messages 5 — accepted notification returns 202 with no body.
+  if (body.id === undefined || body.id === null) {
+    return new Response(null, { status: 202 });
+  }
+
+  switch (method) {
+    // `initialize` was REMOVED in this revision. Answering it while advertising
+    // 2026-07-28 would claim a version this server does not implement, so it is
+    // treated as an unknown method like any other.
     case "ping":
       return rpcResult(id, {});
 
@@ -120,7 +188,21 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     default:
-      return rpcError(id, -32601, `Method not found: ${String(body.method)}`);
+      // An unknown method MUST be 404 with -32601, so a client can distinguish a
+      // modern server from a legacy one that does not host this endpoint.
+      return rpcError(id, JSONRPC_METHOD_NOT_FOUND, `Method not found: ${method}`, 404);
+  }
+}
+
+/** Decode the spec's Base64 sentinel form: `=?base64?...?=`. */
+function decodeHeaderValue(raw: string | null): string | null {
+  if (raw === null) return null;
+  const m = /^=\?base64\?(.*)\?=$/.exec(raw);
+  if (m?.[1] === undefined) return raw;
+  try {
+    return Buffer.from(m[1], "base64").toString("utf8");
+  } catch {
+    return raw;
   }
 }
 
@@ -163,31 +245,47 @@ function rpcResult(id: string | number | null, result: unknown): Response {
   });
 }
 
+/**
+ * JSON-RPC error with an explicit HTTP status.
+ *
+ * The status is a parameter rather than always 200 because this revision requires
+ * specific pairings: 404 for an unknown method, 400 for header validation. Both carry a
+ * JSON-RPC error body so a client can tell them apart from a transport-level failure.
+ */
 function rpcError(
   id: string | number | null,
   code: number,
   message: string,
+  status = 200,
+  data?: Record<string, unknown>,
 ): Response {
-  return new Response(JSON.stringify({ jsonrpc: "2.0", id, error: { code, message } }), {
-    status: 200, // JSON-RPC errors travel in the body, not the HTTP status
+  const error: Record<string, unknown> = { code, message };
+  if (data) error.data = data;
+  return new Response(JSON.stringify({ jsonrpc: "2.0", id, error }), {
+    status,
     headers: { "content-type": "application/json; charset=utf-8" },
   });
 }
 
-/** GET returns discovery info rather than 404, so a curious human sees something useful. */
+/**
+ * GET must be 405.
+ *
+ * Revision 2026-07-28 removed the GET stream endpoint, and the spec directs a
+ * server that supports only this revision to answer GET with 405. Returning a
+ * discovery document instead — which this route originally did — signals an older
+ * revision and causes a client to negotiate down.
+ *
+ * Discovery lives at /api/mcp/info, where it is useful to a human without
+ * misleading a protocol client.
+ */
 export function GET(): Response {
-  return new Response(
-    JSON.stringify(
-      {
-        server: SERVER,
-        protocolVersion: PROTOCOL_VERSION,
-        transport: "streamable-http (stateless)",
-        usage: "POST JSON-RPC 2.0 to this endpoint. Call tools/list to enumerate tools.",
-        tools: TOOL_SCHEMAS.map((t) => ({ name: t.name, description: t.description })),
-      },
-      null,
-      2,
-    ),
-    { headers: { "content-type": "application/json; charset=utf-8" } },
-  );
+  return new Response(null, {
+    status: 405,
+    headers: { allow: "POST", "content-type": "application/json; charset=utf-8" },
+  });
+}
+
+/** DELETE terminated a session in earlier revisions. Sessions no longer exist. */
+export function DELETE(): Response {
+  return new Response(null, { status: 405, headers: { allow: "POST" } });
 }
