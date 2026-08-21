@@ -1,29 +1,41 @@
 # Deployment
 
-> **Gate:** "published to a package registry" is not deployment. A stranger must be
-> able to hit a running instance.
-
-**Live:** <!-- URL -->
+**Live:** https://trigsight.vercel.app
 
 ## Operational surface
 
 | Concern | Implementation |
 |---|---|
-| Health check | |
-| Structured logs | |
-| Metrics / traces | |
-| Configuration | |
-| Rate limiting | |
-| Failure / degradation mode | |
+| Hosting | Vercel, free tier. Static pages prerendered; two dynamic routes. |
+| Health | Every static route is a health signal. `GET /api/mcp` returns discovery JSON. |
+| Config | `AI_GATEWAY_API_KEY`, `AI_GATEWAY_MODEL`. Absent → chat returns retrieved context instead of failing. |
+| Rate limiting | Request bounds enforced before any model call: ≤12 messages, ≤1200 chars each, ≤700 output tokens. |
+| Crawler control | `robots.txt` disallows `/api/chat`, which costs an inference call per request. |
+| Security headers | `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `X-Frame-Options: DENY`. |
+| MCP origin check | Foreign browser origins → 403 (DNS rebinding guard). Absent Origin allowed for CLI agents. |
+| Degradation | Vector store failure → lexical-only retrieval. Model gateway failure → 502 with a reason. Missing credentials → retrieval-only mode. |
 
 ## Deploy
 
 ```bash
-# how it goes out
+npm run build          # content → citation gate → next build
+npx vercel deploy --prod --yes
 ```
+
+The citation gate runs first, so an unverifiable claim cannot reach production.
 
 ## Rollback
 
 ```bash
-# how it comes back
+npx vercel rollback          # previous deployment
+npx vercel alias set <older-deployment-url> trigsight.vercel.app
 ```
+
+## Production-only failure to remember
+
+The first deploy returned HTTP 500 on both dynamic routes while every static page was
+fine. `readFileSync("content/…")` — a serverless bundle does not include the content
+directory. Works locally, `ENOENT` deployed.
+
+Now prevented by 14 tests asserting no route or shared library imports `node:fs`.
+The general lesson: a green build and a green test suite do not prove a system runs.
