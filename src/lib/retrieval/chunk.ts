@@ -50,10 +50,19 @@ export function estimateTokens(text: string): number {
 const MIN_CHARS = 120;
 
 /**
- * Maximum chunk size. Sections longer than this are split on paragraph
- * boundaries so no single chunk can dominate the context budget.
+ * Maximum chunk size.
+ *
+ * LOWERED FROM 1400, and the reason is measured rather than aesthetic. A retrieval evaluation
+ * missed the query "what happens when two compactions run at once". The answer is one sentence —
+ * "a transaction-scoped advisory lock serialises concurrent attempts" — sitting inside a
+ * 1,340-character chunk that also covered structural digests, atomic writes and threshold
+ * calibration. Four topics averaged into one embedding, so the vector points at none of them.
+ *
+ * The first hypothesis was that real embeddings would fix it. They did not, which is what
+ * pointed at chunk size instead of model quality: no embedding of four topics can be close to a
+ * query about one of them.
  */
-const MAX_CHARS = 1400;
+const MAX_CHARS = 700;
 
 export function chunkDocument(input: ChunkInput): Chunk[] {
   const stripped = stripFrontmatter(input.body);
@@ -63,10 +72,18 @@ export function chunkDocument(input: ChunkInput): Chunk[] {
   let ordinal = 0;
 
   for (const section of sections) {
-    const text = renderToText(section.body).replace(/\s+/g, " ").trim();
-    if (text.length === 0) continue;
+    // Split into paragraphs BEFORE collapsing whitespace. `renderToText` flattens every run of
+    // whitespace to a single space, which destroys the blank lines that mark paragraph
+    // boundaries — so the previous code called a function named `splitLong` that could only ever
+    // fall back to packing sentences to a character limit. The paragraph split it documented was
+    // structurally impossible to perform.
+    const paragraphs = renderToText(section.body)
+      .split(/\n\s*\n/)
+      .map((p) => p.replace(/\s+/g, " ").trim())
+      .filter((p) => p.length > 0);
+    if (paragraphs.length === 0) continue;
 
-    for (const part of splitLong(text)) {
+    for (const part of packParagraphs(paragraphs)) {
       if (part.length < MIN_CHARS && chunks.length > 0) {
         // Fold an undersized tail into the previous chunk rather than emitting a
         // weak standalone one. It belongs to the same section anyway.
@@ -142,10 +159,43 @@ function splitOnHeadings(body: string): Section[] {
   return sections;
 }
 
-/** Split an over-long section on paragraph boundaries. */
-function splitLong(text: string): string[] {
-  if (text.length <= MAX_CHARS) return [text];
+/**
+ * Group paragraphs into chunks, never splitting a paragraph unless it alone exceeds the limit.
+ *
+ * A paragraph is the smallest unit a writer treats as one idea, so cutting inside one is what
+ * produces an embedding that points at nothing. Packing whole paragraphs up to a budget keeps
+ * each chunk on a single topic while avoiding a chunk per sentence.
+ */
+function packParagraphs(paragraphs: readonly string[]): string[] {
+  const parts: string[] = [];
+  let current = "";
 
+  for (const para of paragraphs) {
+    if (para.length > MAX_CHARS) {
+      // A single paragraph over budget has to be cut somewhere; sentences are the least bad
+      // boundary. Flush whatever is pending first so it is not merged into the oversized one.
+      if (current.length > 0) {
+        parts.push(current);
+        current = "";
+      }
+      parts.push(...splitOnSentences(para));
+      continue;
+    }
+
+    if (current.length > 0 && current.length + para.length + 1 > MAX_CHARS) {
+      parts.push(current);
+      current = para;
+    } else {
+      current = current.length > 0 ? `${current} ${para}` : para;
+    }
+  }
+
+  if (current.length > 0) parts.push(current);
+  return parts;
+}
+
+/** Last resort for a single paragraph that exceeds the budget on its own. */
+function splitOnSentences(text: string): string[] {
   const sentences = text.split(/(?<=[.?!])\s+/);
   const parts: string[] = [];
   let current = "";
