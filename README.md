@@ -46,7 +46,13 @@ Retrieval, 30 hand-written golden queries at k=5:
 | Config | recall@5 | MRR |
 |---|---|---|
 | Lexical only (BM25) | 0.933 | 0.729 |
-| Hybrid (BM25 + vector, RRF k=60) | **0.967** | **0.831** |
+| Hybrid (BM25 + local stand-in, RRF k=60) | 0.967 | 0.831 |
+| **Hybrid (BM25 + real embeddings)** | **0.967** | **0.889** |
+
+Real embeddings are `text-embedding-3-small` at 1536 dims, cosine, via Upstash Vector.
+Three identical runs. Note what changed: **recall did not improve, ranking did.** At this
+corpus size real embeddings do not find more relevant chunks, they rank the ones they find
+higher — which is the metric that matters, since only the top six reach the model.
 
 ## How the guarantee works
 
@@ -136,12 +142,21 @@ positives against hand-written claim sets.
 
 Stated plainly, because a limitations section that reads as marketing is worthless.
 
-- **The vector leg is currently a deterministic hashed-trigram stand-in**, not a
-  semantic embedding model. It exists so fusion and budgeting are testable offline
-  with no credentials. The eval harness prints this on every run and names the backend
-  in its results. Real embeddings will be measured as a third row — and if they don't
-  beat 0.967, that is a finding about whether a 25-document corpus needs a vector leg
-  at all.
+- **The margin over lexical-only is one query wide.** At 34 chunks and 30 golden queries,
+  one query is worth 0.033 of recall — so the 0.034 recall gap between lexical and hybrid
+  is a single query. Do not read the table as proving hybrid superior in general. It shows
+  hybrid is not worse and ranks better on this corpus.
+- **A prediction of mine was wrong, and the reason is instructive.** I predicted real
+  embeddings would fix the one missed query. They did not. Probing the vector leg in
+  isolation showed the correct chunk never enters its top 5 — because that chunk is 1,340
+  characters covering five topics, and the answer is one clause 871 characters in. Its
+  single vector is an average of five ideas. **That is a chunking problem, not an embedding
+  problem**, and no model fixes it. Recorded rather than patched, because changing the
+  chunker now would invalidate the comparison the table exists to make.
+  See `bench/retrieval/results/real-embeddings-2026-08-21.md`.
+- **Without credentials the vector leg degrades to a deterministic stand-in** that is not
+  a semantic model. Retrieval still answers via BM25, but the quality is genuinely lower —
+  the harness names the backend on every run so a number can never be quoted without it.
 - **Text fragments are fragile by design.** Rewording a cited sentence breaks its
   link. That is the point of the build gate — you cannot ship the breakage — but it
   does mean editing prose sometimes means updating a citation.
