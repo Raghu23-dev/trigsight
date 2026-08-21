@@ -13,4 +13,6 @@ coverage/
 *.pem
 *.key
 .DS_Store
+# generated at build time from verified citations
+src/generated/
 # bench/ is NEVER ignored — see bench/README.md
