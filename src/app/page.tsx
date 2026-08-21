@@ -54,6 +54,15 @@ export default function Home() {
         />
       </section>
 
+      <nav className="mt-12 flex flex-wrap gap-2">
+        <Link
+          href="/ask"
+          className="rounded border border-border bg-surface px-3 py-2 font-mono text-2xs uppercase tracking-wider text-fg-muted transition-colors hover:border-accent-dim hover:text-fg"
+        >
+          Ask about the work →
+        </Link>
+      </nav>
+
       <section className="mt-20">
         <h2 className="font-mono text-2xs uppercase tracking-[0.2em] text-fg-subtle">
           Selected work
