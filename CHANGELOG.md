@@ -4,6 +4,13 @@ Generated from Conventional Commits. Notable changes per release.
 
 ## [Unreleased]
 
+## [0.5.3] — 2026-08-21
+
+### Fixed
+- The onewayglass project page rendered **"What does not work"** twice — once from the template's
+  `limitation` field and once from a body section with the same title. Found by reading the
+  deployed page as a viewer.
+
 ## [0.5.2] — 2026-08-21
 
 ### Fixed
