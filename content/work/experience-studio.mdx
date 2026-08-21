@@ -1,13 +1,84 @@
 ---
-title: Experience Studio
-summary: Prompt-to-app and wireframe generation on a streaming backbone.
+title: AI Application-Generation Platform
+summary: Turned prompts, PRDs and design images into wireframes and deployable React applications, on a streaming backbone I designed.
+category: GenAI Platform
+period: "2025 – 2026"
+order: 1
+stack:
+  - Angular
+  - RxJS
+  - Signals
+  - FastAPI
+  - Python
+  - PostgreSQL
+  - Redis Streams
+  - Server-Sent Events
+  - Azure OpenAI
+  - AWS Bedrock
+metrics:
+  - label: SSE client implementations
+    value: "3"
+    verified: true
+  - label: Typed stream event types
+    value: "19"
+    verified: true
+  - label: Reconnection mechanisms
+    value: "4"
+    verified: true
 ---
 
-# Experience Studio
+## The problem
 
-The platform converts prompts, PRDs and design images into wireframes and
-deployable React applications. It replaced polling with a Server-Sent Events
-architecture that carried real-time generation progress to the browser.
+Generation is slow and the user is left staring at nothing. A wireframe takes
+thirty seconds; a full React application takes minutes. The original
+implementation polled for status, which meant the browser asked "are you done
+yet?" on a timer and learned nothing in between. Polling also scaled badly: every
+client added fixed load whether anything had changed or not.
 
-Deployment spanned five client environments across hardware, banking and
-fintech domains.
+Worse, a long generation that failed halfway gave no signal about where it failed,
+so a user waited out the full timeout before discovering the run was already dead.
+
+## What I built
+
+I replaced polling with a Server-Sent Events architecture carrying generation
+progress to the browser as it happened — per-file code generation, per-screen
+wireframe rendering, build and deploy status.
+
+The interesting engineering is not the happy path. It is what happens when the
+connection drops mid-generation, which on mobile networks is routine.
+
+### Reconnection that neither loses nor duplicates work
+
+The client tracks the last event id it processed and persists it, so a page
+refresh resumes from that point rather than replaying the entire run from zero.
+Replayed events are de-duplicated against a set of already-seen ids scoped to the
+session, so a reconnect during an in-flight generation cannot double-append to the
+transcript.
+
+A dropped connection and a clean close are distinguished deliberately: a stream
+ending without a terminal event is recoverable and reconnects, while a stream that
+ended properly does not. When the server reports a terminal failure the client
+stops trying, because reconnecting into a dead job forever is a bug I have seen
+elsewhere and specifically designed against.
+
+### Incremental rendering against a known total
+
+Batch generation emits one event per screen. The client seeds placeholder slots
+when a batch starts, sets the denominator from the batch size, then fills each
+slot as its screen completes. The user sees real progress against a real total
+rather than an indeterminate spinner.
+
+### A wire contract, authored from the frontend
+
+Streaming protocols fail at the boundary, so I wrote the contract down: which step
+identifiers are accepted for each event type, which fields are mandatory, and the
+subtle one — why a step id must not change mid-session. Because the client
+persists the last event id, a server-side rename after a reconnect silently
+mis-routes every subsequent artifact to the wrong step.
+
+## What I would do differently
+
+Three separate streaming clients accumulated across the codebase, each with its
+own parser. They work, but the same specification bug would need fixing three
+times. A single shared transport with per-feature adapters was the right call and I
+did not make it early enough.

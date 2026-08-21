@@ -1,0 +1,8 @@
+[
+  { "docId": "work/ai-coding-plugin", "passage": "Tool execution, file access, diff application and local indexing live in the editor" },
+  { "docId": "work/ai-coding-plugin", "passage": "The extension holds no model credentials and runs no prompt loop" },
+  { "docId": "work/ai-coding-plugin", "passage": "the file returns to its original content and the accepted hunks are re-applied" },
+  { "docId": "work/ai-coding-plugin", "passage": "stamped with a sequence number, then merged into a single timeline for rendering" },
+  { "docId": "work/ai-coding-plugin", "passage": "an allowlist for low-risk reads, then project-level and session-level rules" },
+  { "docId": "work/ai-coding-plugin", "passage": "its CI runs security scanning only — no lint, no typecheck, no tests" }
+]

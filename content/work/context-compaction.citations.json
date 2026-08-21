@@ -1,0 +1,30 @@
+[
+  {
+    "docId": "work/context-compaction",
+    "passage": "The cap had been sized for an older model's context window and never revisited when the model changed"
+  },
+  {
+    "docId": "work/context-compaction",
+    "passage": "The current state stays flat while the total climbs. The canvas is not growing; the archive is."
+  },
+  {
+    "docId": "work/context-compaction",
+    "passage": "State gets selected, never summarised. History gets summarised."
+  },
+  {
+    "docId": "work/context-compaction",
+    "passage": "Measured on a real page: 10,720 characters down to 882, or 8.2%"
+  },
+  {
+    "docId": "work/context-compaction",
+    "passage": "Source rows are archived only inside the same transaction that writes a validated summary"
+  },
+  {
+    "docId": "work/context-compaction",
+    "passage": "a transaction-scoped advisory lock serialises concurrent attempts, and the loser declines rather than queueing"
+  },
+  {
+    "docId": "work/context-compaction",
+    "passage": "187 of 3,032 rows carried an empty payload"
+  }
+]

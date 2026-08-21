@@ -19,6 +19,8 @@ export interface IndexedDocument {
   readonly text: string;
   /** Rendered text before normalisation — used to quote passages back to readers. */
   readonly display: string;
+  /** Original MDX source. Needed to detect inline-markup boundaries. */
+  readonly source: string;
 }
 
 export type PassageIndex = ReadonlyMap<string, IndexedDocument>;
@@ -92,6 +94,7 @@ export function buildIndex(docs: readonly DocumentInput[]): PassageIndex {
       title: doc.title,
       text: normalise(display),
       display,
+      source: doc.body,
     });
   }
   return index;

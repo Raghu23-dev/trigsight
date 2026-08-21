@@ -1,0 +1,8 @@
+[
+  { "docId": "work/code-retrieval", "passage": "Retrieval over three signals — lexical BM25, semantic vectors, and structural call-graph edges — fused with reciprocal rank fusion" },
+  { "docId": "work/code-retrieval", "passage": "Eight query intents each map to a row in a single declarative table" },
+  { "docId": "work/code-retrieval", "passage": "Encoding graph direction as retrieval policy is the idea I would carry to any future system" },
+  { "docId": "work/code-retrieval", "passage": "on collision keeps the first-seen result rather than the highest-scoring one" },
+  { "docId": "work/code-retrieval", "passage": "Import aliases exist only in import statements, never in symbol bodies" },
+  { "docId": "work/code-retrieval", "passage": "its retrieval quality is asserted rather than reproducible" }
+]

@@ -1,0 +1,6 @@
+{
+  "initialJsKb": 109.8,
+  "budgetKb": 150,
+  "measuredAt": "2026-08-21",
+  "note": "brotli transfer, modern browsers only (noModule bundles excluded). Regenerate with bench/payload/measure.sh"
+}

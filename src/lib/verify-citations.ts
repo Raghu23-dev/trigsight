@@ -8,6 +8,7 @@
  * This is success criteria 1 and 2 from docs/02-thesis.md.
  */
 
+import { findBoundaryIssues } from "./inline-boundary.js";
 import { buildFragment, findOccurrences, normalise } from "./normalise.js";
 import type { PassageIndex } from "./passage-index.js";
 
@@ -26,7 +27,8 @@ export type FailureReason =
   | "unknown-document"
   | "passage-not-found"
   | "passage-too-short"
-  | "passage-too-long";
+  | "passage-too-long"
+  | "crosses-inline-boundary";
 
 export interface Bound {
   readonly ok: true;
@@ -102,6 +104,22 @@ export function verifyCitation(index: PassageIndex, citation: Citation): Result 
       reason: "passage-not-found",
       detail: `passage does not appear in "${doc.path}". This means the claim is unverifiable — either the passage was paraphrased rather than quoted, or the document changed and the citation is now stale.`,
     };
+  }
+
+  // A passage that crosses an inline-markup boundary is split across DOM nodes and
+  // the browser will not match it, even though it appears in flattened text.
+  // Caught by end-to-end verification; see src/lib/inline-boundary.ts.
+  if (doc.source !== undefined) {
+    const issues = findBoundaryIssues(doc.source, citation.passage);
+    if (issues.length > 0) {
+      const parts = issues.map((i) => `${i.kind} (${JSON.stringify(i.fragment)})`).join(", ");
+      return {
+        ok: false,
+        citation,
+        reason: "crosses-inline-boundary",
+        detail: `passage spans inline markup — ${parts}. The browser renders this as separate elements, so a text fragment cannot match across it. Quote a span that sits inside one element instead.`,
+      };
+    }
   }
 
   const { directive, ambiguous } = buildFragment(doc.text, needle, citation.occurrence ?? 0);

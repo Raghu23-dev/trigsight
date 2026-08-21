@@ -1,0 +1,94 @@
+---
+title: Conversation Context Compaction
+summary: Measured 2,446 real conversations, found 78% of the payload was superseded history, and cut it without losing state.
+category: LLM Infrastructure
+period: "2026"
+order: 2
+stack:
+  - Python
+  - FastAPI
+  - PostgreSQL
+  - BeautifulSoup
+  - Azure OpenAI
+metrics:
+  - label: Conversations analysed
+    value: "2,446"
+    verified: true
+  - label: Wasted context at 14 turns
+    value: 78.4%
+    verified: true
+  - label: Page digest reduction
+    value: 8.2%
+    verified: true
+---
+
+## The problem, measured before it was designed
+
+Iterative generation kept failing on long conversations. The obvious reading was a
+request-size limit: small payloads succeeded, large ones returned a server error.
+
+That reading was wrong, and proving it wrong was the whole job.
+
+Two experiments settled it. First, sending the full payload but asking for only one
+page back succeeded — so the input was not the problem. Second, raising the model's
+output token cap made the same full payload succeed with every page returned. The
+failure was **output truncation**, not input size. The cap had been sized for an
+older model's context window and never revisited when the model changed.
+
+Had I "fixed" the input instead, the result would have been worse than the bug: a
+silently partial response, where a user asked for three pages to change and
+received one, with no error.
+
+## What the data said
+
+Decomposing 2,446 real conversations by turn:
+
+| Turns | Total payload | Current state | Superseded | Waste |
+|---|---|---|---|---|
+| 2 | 37,666 | 25,213 | 18,680 | 33.1% |
+| 4 | 71,113 | 29,707 | 41,406 | 58.2% |
+| 7 | 88,183 | 29,408 | 58,775 | 66.7% |
+| 14 | 152,879 | 33,022 | 119,857 | 78.4% |
+
+The current state stays flat while the total climbs. The canvas is not growing; the
+archive is.
+
+## The insight
+
+I asked whether coding assistants compact code, and concluded they do not — they
+re-read files and compact the *conversation about* them. That distinction is the
+whole design: rendered output is **state**, and prose is **history**. State gets
+selected, never summarised. History gets summarised.
+
+The corollary matters more: gating compaction on payload size would fire on turn one
+of everything and save nothing, because the thing making a payload large is the thing
+that cannot be compacted.
+
+## What I built
+
+**Structural digests for non-target pages.** The page under edit is sent verbatim,
+always. Every other page is reduced to a structural digest — custom properties,
+landmarks, recurring class names, headings. Measured on a real page: 10,720
+characters down to 882, or 8.2%.
+
+I used a parser rather than a regex. A regex prototype filtered class names against a
+hardcoded prefix list and silently missed anything outside it, so the prefix list
+*was* the brittleness. Ranking by recurrence instead means unfamiliar naming
+conventions degrade to fewer findings rather than to silence.
+
+**Prose compaction with atomic writes.** Source rows are archived only inside the
+same transaction that writes a validated summary, so no state exists where history is
+archived but no summary exists. Rows are marked archived, never deleted, so a bad
+summary is always recoverable. A transaction-scoped advisory lock serialises
+concurrent attempts, and the loser declines rather than queueing — by the time it
+acquired the lock its view of the conversation would be stale.
+
+**Thresholds calibrated against production, not intuition.** The first gate was
+guessed and fired for 13 of 2,446 conversations. Measuring produced a threshold that
+fires when it should.
+
+One label was worth getting right: outcomes are recorded as *applied* or *no pages
+produced*, not *applied* or *rejected*. Measurement showed 187 of 3,032 rows carried
+an empty payload — the model produced nothing, which is not the user rejecting the
+design. The wrong label would have taught the compactor to forbid things users
+actually asked for.

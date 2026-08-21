@@ -1,0 +1,85 @@
+---
+title: AI Process-Orchestration Engine
+summary: Ran multi-step LLM workflows through human approval gates with governed model routing, multi-pod streaming and per-run cost accounting.
+category: Agent Infrastructure
+period: "2026"
+order: 4
+stack:
+  - Python
+  - FastAPI
+  - CrewAI
+  - Apache Kafka
+  - Redis
+  - AWS Bedrock
+  - OpenTelemetry
+metrics:
+  - label: Human approval gate types
+    value: "7"
+    verified: true
+  - label: Plugin tools
+    value: "25"
+    verified: true
+  - label: Stream event types
+    value: "23"
+    verified: true
+---
+
+## The problem
+
+An agent that can edit files, run commands and call external services is useful and
+dangerous in the same breath. Left unsupervised it will occasionally do something
+irreversible with complete confidence. Left fully supervised it is slower than doing
+the work by hand.
+
+The engineering problem is not "should a human approve this" but *which* actions
+need approval, what the human is shown in order to decide, and what happens to the
+run while it waits.
+
+## What I built
+
+I owned the platform-integration and production-hardening layer: model routing
+governance, multi-pod streaming transport, retry and resilience, conversation
+compaction, dynamic workflow loading, dependency-staleness cascades, and per-run
+cost accounting.
+
+### Approval gates that cannot fail open
+
+Seven gate types over a risk lattice, with four possible human responses —
+approve, reject, modify, override. The critical property is that a gate can never
+silently pass: if persisting the gate state fails, the system degrades to an
+in-memory gate rather than proceeding, because an earlier version had a failure mode
+where a storage error auto-approved the action.
+
+One detail I am glad we caught. When a human *modifies* a proposed shell command, the
+suggested replacement is never executed directly — it is routed as an override
+requiring fresh confirmation. Executing a human's edited command as though the agent
+had proposed it is a confused-deputy hole, and the distinction is invisible until you
+think about who is trusting whom.
+
+### Streaming that survives horizontal scale
+
+Progress events publish through Kafka to an isolated topic, so any pod can serve any
+client's stream without sticky sessions. On reconnect, pending approval gates replay
+as the first event — otherwise a user who refreshed would sit waiting on a gate they
+could no longer see.
+
+### Cost accounting that refuses to guess
+
+Per-run token and cost tracking reports its own confidence: when a model's pricing is
+unknown, the ledger returns *unpriced* rather than fabricating an estimate from a
+default rate. A cost figure that is quietly wrong is worse than an absent one,
+because it gets put in a report.
+
+### Context budgeting, measured
+
+Parallel execution reduced prompt tokens from roughly 50K to 15K per call by
+scoping each branch to only the artifacts it needs. Stripping rendered output from
+sequential prompts cut input tokens by a further 40 to 60 percent.
+
+## Honest limitations
+
+Load testing surfaced a client-disconnect leak where a small number of sessions
+remained active after a drain window, and confirmed the process is memory-bound
+rather than CPU-bound at the concurrency levels tested. Both were found by building
+a capacity harness that reports *unknown* instead of a false pass when it cannot
+measure something — which is how the leak was noticed at all.
