@@ -22,7 +22,9 @@ import { projects, work } from "../../../lib/content";
 export const runtime = "nodejs";
 
 const PROTOCOL_VERSION = "2026-07-28";
-const SERVER = { name: "trigsight", version: "0.1.0" } as const;
+// Server identity is deliberately absent. The 2026-07-28 revision removed the `initialize`
+// handshake, which was the only place a server announced its own name and version — so a
+// SERVER constant here would be dead weight advertising a capability the revision deleted.
 
 /**
  * Conformance note.

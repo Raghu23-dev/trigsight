@@ -137,14 +137,24 @@ export async function POST(request: Request): Promise<Response> {
     )
     .join("\n\n");
 
-  const apiKey = process.env.AI_GATEWAY_API_KEY;
+  // Any OpenAI-compatible endpoint. Hardcoding Vercel's gateway made the chat unusable the
+  // moment that gateway started requiring a card on file to release its free credits — the
+  // deployment could not be pointed at a free alternative without a code change.
+  //
+  // Groq, Together, OpenRouter and a local Ollama all speak this shape, so the endpoint is
+  // configuration. The default is unchanged, so nothing that works today breaks.
+  const baseUrl = process.env.CHAT_BASE_URL ?? "https://ai-gateway.vercel.sh/v1";
+  const apiKey = process.env.AI_GATEWAY_API_KEY ?? process.env.CHAT_API_KEY;
   if (apiKey === undefined || apiKey.length === 0) {
     // No credentials configured: return the retrieval result rather than failing.
     // This keeps the endpoint honest in development and makes the retrieval layer
     // independently inspectable.
     return json({
       mode: "retrieval-only",
-      note: "AI_GATEWAY_API_KEY is not set, so no model was called. Retrieved context is returned for inspection.",
+      note:
+        "No model credential is set (CHAT_API_KEY or AI_GATEWAY_API_KEY), so no model was " +
+        "called. Retrieved context is returned for inspection — the retrieval layer is the " +
+        "part this endpoint can prove without one.",
       question,
       retrieved: hits.map((h) => ({
         docId: h.chunk.docId,
@@ -156,14 +166,14 @@ export async function POST(request: Request): Promise<Response> {
     });
   }
 
-  const upstream = await fetch("https://ai-gateway.vercel.sh/v1/chat/completions", {
+  const upstream = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
       authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: process.env.AI_GATEWAY_MODEL ?? "anthropic/claude-haiku-4.5",
+      model: process.env.CHAT_MODEL ?? process.env.AI_GATEWAY_MODEL ?? "anthropic/claude-haiku-4.5",
       max_tokens: MAX_OUTPUT_TOKENS,
       stream: true,
       messages: [
