@@ -1,0 +1,20 @@
+{
+  "lighthouse_version": "12.8.2",
+  "fetch_time": "2026-08-21T02:29:46.110Z",
+  "url": "https://anvilry.vercel.app/",
+  "form_factor": "mobile",
+  "scores": {
+    "performance": 62,
+    "accessibility": 100,
+    "best-practices": 100,
+    "seo": 100
+  },
+  "metrics": {
+    "first-contentful-paint": "1.0\u00a0s",
+    "largest-contentful-paint": "3.9\u00a0s",
+    "total-blocking-time": "1,540\u00a0ms",
+    "cumulative-layout-shift": "0.001",
+    "speed-index": "2.5\u00a0s"
+  },
+  "lcp_element": "<p class=\"flex items-center gap-2 text-sm text-fg-muted\">"
+}
