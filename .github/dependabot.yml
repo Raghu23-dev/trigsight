@@ -3,6 +3,25 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule: { interval: "weekly" }
+
   - package-ecosystem: "npm"
     directory: "/"
     schedule: { interval: "weekly" }
+    ignore:
+      # ESLint 10 breaks eslint-plugin-react, which ships inside eslint-config-next@16.3.1:
+      #
+      #   TypeError: Error while loading rule 'react/display-name':
+      #   contextOrFilename.getFilename is not a function
+      #
+      # The plugin calls a context API that ESLint 10 removed, so every React rule fails to load
+      # and `eslint .` exits 2 before linting a single file. Nothing here can fix it.
+      #
+      # Dependabot offered the bump because eslint-config-next declares
+      # `peerDependencies.eslint: ">=9.0.0"` — an unbounded range that cannot express "not 10
+      # yet", so npm treats 10.8.1 as satisfying it.
+      #
+      # Ignored rather than merely pinned: a pin still gets a PR every week, and the seventh
+      # identical red PR is one somebody merges. Remove this block once Next ships a config with
+      # a v10-compatible eslint-plugin-react.
+      - dependency-name: "eslint"
+        versions: ["10.x"]
