@@ -1,0 +1,114 @@
+---
+title: A Spend Ceiling That Holds Under Concurrency
+summary: Configured LLM budgets do not block. Cost is unknowable until after the money is spent, so a limit checked after the call is a report, not a control — and four common patterns fail open by 95–100%.
+category: Infrastructure / Cost Control
+period: "2026"
+order: 2
+live: https://fusegrid.vercel.app
+repo: https://github.com/Raghu23-dev/fusegrid
+headline: Four post-hoc patterns fail open by 95–100%; reserve-then-settle holds at 0%
+limitation: The first deployment overran its own ceiling by 303% in production — 25 concurrent requests were served by 25 serverless instances, each holding a separate in-memory ledger. The failure mode was already documented in the code that shipped it.
+reproduce: python bench/enforce/replay.py
+stack:
+  - Python
+  - FastAPI
+  - Redis
+  - Lua
+  - Vercel
+metrics:
+  - label: Post-hoc overrun
+    value: 95–100%
+    verified: true
+  - label: Enforced overrun
+    value: 0%
+    verified: true
+  - label: Enforcement p99
+    value: 0.0035 ms
+    verified: true
+  - label: Production overrun found
+    value: 303% → 0%
+    verified: true
+---
+
+## The problem
+
+You configure a spend limit, exceed it, and nothing stops the request. You find out on the invoice.
+
+This is not a bug in one product. It is a property of enforcing a limit against a cost that is
+unknowable until after the money is spent. A budget check that runs after the upstream call is an
+accounting entry, not a control.
+
+Four patterns, measured as a baseline before anything was built:
+
+| Pattern | Overrun |
+|---|---|
+| Check spend, then call | **100%** |
+| Check after the call | **95%** |
+| Async telemetry write | **100%** |
+| Per-request budget read | **100%** |
+
+All four fail open. Every one of them looks correct in a code review.
+
+## The mechanism
+
+```
+price → reserve → call upstream → settle
+        └─ atomic, before any money is committed
+```
+
+The reservation is the worst case — `max_tokens` at the model's output rate — taken atomically
+before the upstream call. Settlement replaces it with actual cost and releases the difference.
+
+The invariant: `committed + Σ(open reservations) ≤ ceiling`, at all times.
+
+Three decisions that each fix a real failure:
+
+**Integer micro-dollars.** Twenty requests at $0.05 sum to 1.0000000000000002 in float, so the
+twentieth legitimate request against a $1.00 ceiling was denied. Redis `INCRBY`, never
+`INCRBYFLOAT`.
+
+**An unpriced model is refused, never zero-costed.** A model that launched this week has no entry
+in the price table. Pricing it at zero means the most expensive model in the fleet is the one that
+is unenforced.
+
+**A ledger that cannot be reached denies.** Fail closed. Unenforced spend is the failure this
+exists to prevent, so an unreachable store is not a reason to allow it.
+
+## Results
+
+| | Post-hoc baseline | Enforced |
+|---|---|---|
+| Ceilings held | 0 of 4 | **4 of 4** |
+| Overrun | 95–100% | **0%** |
+| Enforcement p99 | — | **0.0035 ms** |
+
+## What went wrong in production
+
+The first deployment used the in-memory store. Real-world scenario testing fired 25 concurrent
+workers at a budget with room for two:
+
+| | |
+|---|---|
+| Admitted | 20 of 25 |
+| A provider would have billed | $0.2016 |
+| Ceiling | $0.05 |
+| **Overrun** | **303%** |
+| Distinct serverless instances | **25** |
+
+Each instance held its own ledger and enforced $0.05 correctly against its own slice of traffic.
+There were 25 ceilings instead of one.
+
+The uncomfortable part: **the code already said so.** The store's own docstring reads "correct for
+one replica and useless for two — which is precisely measured failure #1". The deployment
+documentation said not to run it behind a load balancer. Three layers were right and the product
+was still wrong, because none of them ran against the deployment.
+
+Worse, **the first scenario test passed.** It asked the service how much it had spent and believed
+the answer — a read that landed on an instance which had served one request. Spend is now derived
+from what a provider would bill, independently of what the service claims. The disagreement between
+the two is the finding.
+
+Fixed with the shared Redis ledger that already existed in the codebase. Same scenario, same 25
+instances, one ledger: **0% overrun.** Health now reports whether the ledger is actually shared and
+returns `degraded` when it is not, because health returning `ok` against a per-instance store is
+exactly why the overrun went unnoticed.

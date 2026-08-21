@@ -1,0 +1,9 @@
+[
+  { "docId": "projects/fusegrid", "passage": "It is a property of enforcing a limit against a cost that is unknowable until after the money is spent" },
+  { "docId": "projects/fusegrid", "passage": "All four fail open. Every one of them looks correct in a code review" },
+  { "docId": "projects/fusegrid", "passage": "Twenty requests at $0.05 sum to 1.0000000000000002 in float" },
+  { "docId": "projects/fusegrid", "passage": "Pricing it at zero means the most expensive model in the fleet is the one that is unenforced" },
+  { "docId": "projects/fusegrid", "passage": "Each instance held its own ledger and enforced $0.05 correctly against its own slice of traffic" },
+  { "docId": "projects/fusegrid", "passage": "Three layers were right and the product was still wrong, because none of them ran against the deployment" },
+  { "docId": "projects/fusegrid", "passage": "It asked the service how much it had spent and believed the answer" }
+]

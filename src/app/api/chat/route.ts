@@ -1,7 +1,7 @@
 import { chunkDocument, type Chunk } from "../../../lib/retrieval/chunk";
 import { LocalTrigramBackend, Retriever } from "../../../lib/retrieval/retrieve";
 import { upstashFromEnv } from "../../../lib/retrieval/upstash";
-import { work } from "../../../lib/content";
+import { projects, work } from "../../../lib/content";
 
 /**
  * Grounded chat.
@@ -38,9 +38,12 @@ function getRetriever(): Retriever {
   // fails in production while working locally — verified by an ENOENT on the first
   // deploy. Velite already carries the raw MDX, so the read was never necessary.
   const chunks: Chunk[] = [];
-  for (const w of work) {
+  // Projects and work share one corpus. Omitting projects would leave the chat unable to answer
+  // about the only work on the site a reader can independently verify — and it would answer
+  // anyway, from the employer pages, which is worse than saying nothing.
+  for (const d of [...projects, ...work]) {
     chunks.push(
-      ...chunkDocument({ docId: w.id, docTitle: w.title, path: w.path, body: w.raw }),
+      ...chunkDocument({ docId: d.id, docTitle: d.title, path: d.path, body: d.raw }),
     );
   }
   // Real embeddings when configured, the deterministic stand-in otherwise. The stand-in

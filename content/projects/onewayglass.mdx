@@ -1,0 +1,126 @@
+---
+title: Count-Stable Permission-Aware Retrieval
+summary: RAG over permissioned documents leaks through result counts. Filtering after retrieval makes absence measurable, so a junior engineer can map what is hidden from them without reading a word of it.
+category: Retrieval / Security
+period: "2026"
+order: 1
+live: https://onewayglass.vercel.app
+repo: https://github.com/Raghu23-dev/onewayglass
+headline: 17 restricted documents revealed becomes 0
+limitation: A relevance channel survives. Padded results share no terms with the query, so the person receiving them can spot the filler and recover the full original inference by reading — 15/15 exact, one request, no statistics.
+reproduce: python bench/enforce/replay.py
+stack:
+  - Python
+  - BM25
+  - FastAPI
+  - Vercel
+metrics:
+  - label: Documents revealed
+    value: 17 → 0
+    verified: true
+  - label: Count inference
+    value: 15/15 → 0/15
+    verified: true
+  - label: Recall change
+    value: "+7.7%"
+    verified: true
+  - label: Latency cost
+    value: 1.48×
+    verified: true
+---
+
+## The problem
+
+Permissioned RAG is usually judged by one question: does it ever return a document the caller may
+not read? Answer "no" and it passes review.
+
+That is the wrong question, and answering it correctly is not sufficient.
+
+An engineering IC on a 35-document corpus may read 13 of them. They ask, in ordinary words,
+*"redundancy planning next fiscal year"*. The system ranks all 35, takes the top 5, drops what the
+caller cannot read, and returns two.
+
+No confidential text was disclosed. And the caller has just learned that three documents about
+redundancy planning exist and are being kept from them.
+
+**Absence is informative.** The gap between what was asked for and what came back is a function of
+how many restricted documents matched — a fact about documents the caller cannot read, handed to
+them on every request.
+
+## What the leak measures
+
+Fifteen queries, none adversarially worded. The leak does not need unusual input, which is what
+makes it a real problem rather than a curiosity.
+
+| | |
+|---|---|
+| Probes where restricted documents matched | 13 / 15 |
+| Attacker's inferred hidden count exactly correct | **15 / 15** |
+| Restricted documents whose existence was revealed | **17** |
+
+The control is what makes it an oracle rather than noise. Total deficit across the same fifteen
+probes, by seniority:
+
+| Principal | May read | Deficit |
+|---|---|---|
+| Engineer (IC) | 13 | **23** |
+| Eng Director | 20 | 18 |
+| People Director | 14 | 18 |
+| **CEO** | **35** | **0** |
+
+Monotonically falling as permission rises, exactly zero for someone who reads everything. That is
+a reliable readout of what is hidden from you, available to anyone who can count.
+
+## The mechanism
+
+```
+naive:     rank all 35 → take top 5 → drop unreadable → return 2
+                                                        └─ the deficit is the leak
+
+enforced:  restrict to readable → rank those → take top 5 → pad to 5 → return 5
+                                                            └─ count carries no information
+```
+
+Two changes, and the second is the one that matters. Filtering before ranking removes most of the
+deficit. But a principal with only three readable matches still receives three — so comparing
+counts with a colleague still leaks. Padding to a fixed width is what makes the count constant.
+
+The invariant every test attacks: **for any two principals issuing the same query, the observable
+result count is identical.** Only the content differs.
+
+## Results
+
+| | Naive | Enforced |
+|---|---|---|
+| Count inference | 13/15 probes leaked | **0/15** |
+| Documents revealed to exist | 17 | **0** |
+| Observable count | varies by principal | **5, for all 9 principals** |
+| Content violations | 0 | **0** (135 principal×query pairs) |
+| Recall@5 vs per-principal ideal | 0.923 | **1.000** |
+| Latency p50 | 7.29 µs | 10.83 µs (1.48×) |
+
+Enforcement **improves** recall by 7.7%, which was not the prediction — the thesis budgeted for up
+to 5% loss. Retrieve-then-filter costs quality precisely because restricted documents occupy top-k
+slots a readable document could have used. The gain tracks permission: the CEO loses nothing
+either way, the contractor gains most.
+
+## What does not work
+
+A timing channel survives at median SNR 0.73, and the direction is counterintuitive — the heavily
+padded arm is *faster*, because padding appends pre-sorted documents rather than scoring more
+candidates. Had I assumed padding would be slower, I would have timed the wrong arm and reported a
+clean result.
+
+The more serious one was found after all six criteria had passed, by sweeping the deployment.
+**Padded results share no terms with the query.** So a principal who receives five results and sees
+that none of them answer the question knows every document that did match is one they cannot read.
+That is the full original inference, restored: **15/15 exact, one request, no statistics.**
+
+Every earlier benchmark had measured an observer of the *count* — a colleague comparing notes, a
+proxy log. But the threat model said the attacker **is the principal**, and the principal reads the
+results. So the claim narrowed:
+
+> Count-stability defeats an observer of the count. It does not defeat the recipient of the results.
+
+Still worth something: the colleague comparing counts, the access log that records counts but not
+payloads, the pipeline downstream of the payload. Not protection against the reader.
