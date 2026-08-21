@@ -16,3 +16,5 @@ coverage/
 # generated at build time from verified citations
 src/generated/citation-allowlist.json
 # bench/ is NEVER ignored — see bench/README.md
+.vercel
+.env*

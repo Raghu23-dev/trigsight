@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { chunkDocument, type Chunk } from "../../../lib/retrieval/chunk";
 import { LocalTrigramBackend, Retriever } from "../../../lib/retrieval/retrieve";
 import { work } from "../../../lib/content";
@@ -33,11 +32,14 @@ let retriever: Retriever | null = null;
 
 function getRetriever(): Retriever {
   if (retriever !== null) return retriever;
+  // Source comes from Velite's build output, never from the filesystem. A
+  // serverless function does not ship the content/ directory, so readFileSync
+  // fails in production while working locally — verified by an ENOENT on the first
+  // deploy. Velite already carries the raw MDX, so the read was never necessary.
   const chunks: Chunk[] = [];
   for (const w of work) {
-    const body = readFileSync(`content/${w.id}.mdx`, "utf8");
     chunks.push(
-      ...chunkDocument({ docId: w.id, docTitle: w.title, path: w.path, body }),
+      ...chunkDocument({ docId: w.id, docTitle: w.title, path: w.path, body: w.raw }),
     );
   }
   retriever = new Retriever(chunks, new LocalTrigramBackend(chunks));

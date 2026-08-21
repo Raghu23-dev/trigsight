@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { Tools, TOOL_SCHEMAS, type Doc } from "../../../lib/mcp/tools";
 import { work } from "../../../lib/content";
 
@@ -38,7 +37,8 @@ function getTools(origin: string): Tools {
     period: w.period,
     stack: w.stack,
     metrics: w.metrics,
-    body: readFileSync(`content/${w.id}.mdx`, "utf8"),
+    // Velite's build output, not the filesystem — see the chat route for why.
+    body: w.raw,
   }));
   tools = new Tools(docs, origin);
   return tools;
