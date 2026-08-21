@@ -33,7 +33,7 @@
     "velite": "^0.4.0",
     "vitest": "^4.1.10",
     "zod": "^4.4.3",
-    "eslint": "^9",
+    "eslint": "^10",
     "eslint-config-next": "16.3.1"
   },
   "dependencies": {
