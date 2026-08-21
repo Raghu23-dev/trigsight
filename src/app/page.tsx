@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Scene } from "../components/scene";
 import { work } from "../lib/content";
 import allowlist from "../generated/citation-allowlist.json";
 import payload from "../generated/payload.json";
@@ -16,6 +17,12 @@ const PAYLOAD_BUDGET_KB = payload.budgetKb;
 export default function Home() {
   return (
     <main className="mx-auto max-w-4xl px-6 py-24">
+      {/* The scene sits behind the hero, never over it, and is aria-hidden.
+          Height is fixed so it cannot become the largest contentful paint. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[42vh] overflow-hidden [mask-image:linear-gradient(to_bottom,black,transparent)]">
+        <Scene />
+      </div>
+
       <header>
         <p className="font-mono text-2xs uppercase tracking-[0.2em] text-fg-subtle">
           Raghuram P · GenAI Full-Stack Engineer
@@ -120,7 +127,7 @@ function Stat({
       <p className="mt-1.5 font-mono text-2xs uppercase leading-snug tracking-wider text-fg-subtle">
         {label}
       </p>
-      <p className="mt-0.5 font-mono text-2xs text-fg-subtle/70">{note}</p>
+      <p className="mt-0.5 font-mono text-2xs text-fg-subtle">{note}</p>
     </div>
   );
 }

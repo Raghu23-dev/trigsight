@@ -23,7 +23,10 @@
      hierarchy stops being legible. */
   --color-fg: #e8eaf0;
   --color-fg-muted: #9aa1b1;
-  --color-fg-subtle: #646c7e;
+  /* Verified WCAG AA (>=4.5:1) against every surface token, computed not eyeballed:
+     bg 5.03 · surface 4.81 · surface-raised 4.53. The previous value (#646c7e)
+     measured 3.78 and Lighthouse caught it. */
+  --color-fg-subtle: #788092;
 
   /* Signal colours. Used for state, never for decoration. */
   --color-accent: #4da3ff;
