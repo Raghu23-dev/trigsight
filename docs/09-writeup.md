@@ -151,21 +151,21 @@ feature commit — git history proves the ordering:
 | 1 | Passage-level binding | 100% | **34/34**, verified against rendered HTML *and* the live site |
 | 2 | Unbound claim fails build | exit ≠ 0 | **verified** — `next build` never runs |
 | 3 | Retrieval recall@5 | ≥ 0.85 | **0.967**, MRR 0.831 |
-| 4 | Initial JS | ≤ 150 KB | **110.4 KB** with WebGL shipping |
-| 5 | Lighthouse mobile | ≥ 95 ×4 | **100 / 100 / 100 / 100** |
+| 4 | Initial JS | ≤ 150 KB | **133.9 KB** with WebGL shipping |
+| 5 | Lighthouse mobile | ≥ 95 ×4 | **99–100 / 100 / 100 / 100** |
 | 6 | Hallucinated answers | 0 | **0** across the adversarial suite |
 
 Against the measured baseline:
 
 | | Comparable portfolio | trigsight |
 |---|---|---|
-| Performance (mobile) | 62 | **100** |
+| Performance (mobile) | 62 | **99–100** |
 | LCP | 3.9 s | **1.5 s** (production) |
 | TBT | 1,540 ms | **20–80 ms** |
-| Initial JS | 380.9 KB | **110.4 KB** |
+| Initial JS | 380.9 KB | **133.9 KB** |
 | WebGL scene | none | **shipping** |
 
-3.4× less JavaScript while shipping more. Retrieval, 30 queries at k=5: hybrid 0.967
+2.8× less JavaScript while shipping more. Retrieval, 30 queries at k=5: hybrid 0.967
 recall / 0.831 MRR versus lexical-only 0.933 / 0.729 — the MRR gain matters more, since
 only the top six chunks reach the model.
 
