@@ -1,12 +1,13 @@
 {
-  "initialJsKb": 110.4,
+  "initialJsKb": 133.9,
   "budgetKb": 150,
   "measuredAt": "2026-08-21",
+  "method": "deployed-transfer",
   "lighthouse": {
-    "performance": 100,
+    "performance": 99,
     "accessibility": 100,
     "bestPractices": 100,
     "seo": 100
   },
-  "note": "brotli transfer, modern browsers only. Regenerate with bench/payload/measure.sh"
+  "note": "Real on-the-wire brotli transfer from the deployed site, modern browsers only (noModule bundle excluded). Regenerate with bench/baseline/measure-payload.sh https://trigsight.vercel.app/ — this is the figure the 380.9 KB comparable is measured against, so it must come from this harness. bench/payload/measure.sh is a LOCAL pre-deploy budget check (locally-applied brotli, reports ~110 KB) and is not comparable."
 }

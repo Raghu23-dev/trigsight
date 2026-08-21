@@ -34,12 +34,14 @@ ship.
 | Accessibility · Best Practices · SEO | 100 · 100 · 100 | **100 · 100 · 100** |
 | Largest Contentful Paint | 3.9 s | **1.9 s** |
 | Total Blocking Time | 1,540 ms | **~20 ms** |
-| Initial JavaScript (brotli) | 380.9 KB | **110.4 KB** |
+| Initial JavaScript (brotli) | 380.9 KB | **133.9 KB** |
 | WebGL scene | none | **shipping** |
 | Citations verified against source | — | **34 / 34** |
 
-3.4× less JavaScript *with* a 3D scene running. Both figures measured with the
-harnesses in `bench/`, three runs each.
+2.8× less JavaScript *with* a 3D scene running. Both figures are real on-the-wire
+brotli transfer from the deployed sites, measured by the same harness
+(`bench/baseline/measure-payload.sh`), three runs each — see `docs/05-results.md`
+for why measuring the two sides different ways overstated this as 3.4×.
 
 Retrieval, 30 hand-written golden queries at k=5:
 
