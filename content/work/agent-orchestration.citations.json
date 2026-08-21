@@ -1,0 +1,26 @@
+[
+  {
+    "docId": "work/agent-orchestration",
+    "passage": "Seven gate types over a risk lattice, with four possible human responses"
+  },
+  {
+    "docId": "work/agent-orchestration",
+    "passage": "if persisting the gate state fails, the system degrades to an in-memory gate rather than proceeding"
+  },
+  {
+    "docId": "work/agent-orchestration",
+    "passage": "it is routed as an override requiring fresh confirmation"
+  },
+  {
+    "docId": "work/agent-orchestration",
+    "passage": "Progress events publish through Kafka to an isolated topic, so any pod can serve any client's stream without sticky sessions"
+  },
+  {
+    "docId": "work/agent-orchestration",
+    "passage": "A cost figure that is quietly wrong is worse than an absent one"
+  },
+  {
+    "docId": "work/agent-orchestration",
+    "passage": "Parallel execution reduced prompt tokens from roughly 50K to 15K per call"
+  }
+]

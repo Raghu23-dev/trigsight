@@ -1,0 +1,79 @@
+---
+title: Hybrid Code-Retrieval Pipeline
+summary: Symbol-aware retrieval over large codebases, combining lexical, semantic and structural signals behind an intent-routed planner.
+category: Retrieval / RAG
+period: "2026"
+order: 3
+stack:
+  - Python
+  - Tree-sitter
+  - SQLite FTS5
+  - sqlite-vec
+  - Azure OpenAI
+  - Cohere Rerank
+metrics:
+  - label: Tree-sitter extractors
+    value: "19"
+    verified: true
+  - label: Retrieval intents
+    value: "8"
+    verified: true
+  - label: Embedding dimensions
+    value: "3072"
+    verified: true
+---
+
+## The problem
+
+An LLM coding agent is only as good as the context it retrieves. Ask "what breaks if
+I change this function?" and a naive semantic search returns things that *read*
+similar rather than things that are actually coupled. Ask for a symbol by name and a
+vector search buries the exact match under paraphrases.
+
+Different questions need different retrieval strategies, and one pipeline tuned for
+the average question serves none of them well.
+
+## What I built
+
+Retrieval over three signals — lexical BM25, semantic vectors, and structural
+call-graph edges — fused with reciprocal rank fusion, then reranked. Chunking is
+symbol-boundary rather than fixed-window, so a chunk is always a complete function
+or class with its context header attached.
+
+The part worth explaining is the routing.
+
+### An intent table rather than a branching executor
+
+Eight query intents each map to a row in a single declarative table: which retrieval
+legs to run and in what order, how far to expand the call graph, whether to skip
+reranking, how many symbols to budget, and how to pack the final context. Adding an
+intent is a row, not a code change.
+
+The sharpest pair is directional. "What does this depend on?" walks the import graph
+*forward* two hops. "What breaks if I change this?" walks it *backward* one hop with a
+much larger symbol budget and breadth-first packing, so every affected file gets a
+representative rather than one file consuming the whole budget. Encoding graph
+direction as retrieval policy is the idea I would carry to any future system.
+
+### Fusion that does not quietly favour one signal
+
+Reciprocal rank fusion combines the legs by rank, not score, and on collision keeps
+the first-seen result rather than the highest-scoring one. That is deliberate:
+cosine similarity lands in a narrow high band while BM25 scores spread low, so
+score-based replacement would let the vector leg silently win every tie regardless of
+which signal was actually more relevant.
+
+### Alias-aware seeding
+
+Import aliases exist only in import statements, never in symbol bodies, so a text
+search structurally cannot find them. A dedicated retrieval leg resolves them
+directly. That is not a clever trick — it came from watching real queries fail and
+asking why.
+
+## Honest limitations
+
+Cross-file call resolution matches on bare symbol name, so common names resolve
+imprecisely and those edges feed graph expansion. The system has no evaluation
+harness committed alongside it, which means its retrieval quality is asserted rather
+than reproducible — the single biggest gap, and the reason my own public work now
+treats a committed benchmark as non-negotiable.

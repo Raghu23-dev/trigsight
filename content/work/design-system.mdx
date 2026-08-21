@@ -1,0 +1,55 @@
+---
+title: Enterprise Angular Design System
+summary: A versioned component library and a semantic theming contract that let one shared library render correctly inside ten host applications.
+category: Frontend Platform
+period: "2025 – 2026"
+order: 5
+stack:
+  - Angular
+  - TypeScript
+  - SCSS
+  - RxJS
+  - Signals
+  - ng-packagr
+metrics:
+  - label: Library components
+    value: "127"
+    verified: true
+  - label: Shared-library components
+    value: "293"
+    verified: true
+  - label: Component token files
+    value: "61"
+    verified: true
+---
+
+## The problem
+
+Ten applications, one shared component library, and every host app with its own
+palette. A shared component cannot hardcode colours, but it also cannot know which
+host it is rendering inside. The usual outcome is either visual drift between apps or
+a component API bloated with styling props.
+
+## What I built
+
+A **semantic token contract**: a small set of meaning-named custom properties —
+surface, border, text, brand — each defined with a fallback, and per-theme blocks
+supplying the values. A host application maps its own variables onto the contract
+once. Every shared component then themes correctly inside any host without knowing
+anything about it.
+
+The contract is deliberately small. Fourteen tokens is enough to express a design
+language and few enough that a host can implement it in one sitting; a hundred tokens
+would be more expressive and would never be adopted.
+
+Underneath, the library ships a three-tier cascade: base tokens, then per-component
+token files, then theme overrides. Component-level tokens are what make the system
+extensible without forking — a host can retint one component without touching the
+base scale.
+
+## What I would do differently
+
+Multiple theme services accumulated across the estate over time, each solving the
+same problem slightly differently, with nothing reconciling them. A token contract
+solves the styling problem cleanly but says nothing about *who owns theme state at
+runtime*, and that gap is where the duplication grew.

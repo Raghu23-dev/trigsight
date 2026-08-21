@@ -1,0 +1,12 @@
+{
+  "initialJsKb": 110.4,
+  "budgetKb": 150,
+  "measuredAt": "2026-08-21",
+  "lighthouse": {
+    "performance": 100,
+    "accessibility": 100,
+    "bestPractices": 100,
+    "seo": 100
+  },
+  "note": "brotli transfer, modern browsers only. Regenerate with bench/payload/measure.sh"
+}

@@ -1,0 +1,6 @@
+[
+  { "docId": "work/design-system", "passage": "A host application maps its own variables onto the contract once" },
+  { "docId": "work/design-system", "passage": "Fourteen tokens is enough to express a design language and few enough that a host can implement it in one sitting" },
+  { "docId": "work/design-system", "passage": "a host can retint one component without touching the base scale" },
+  { "docId": "work/design-system", "passage": "that gap is where the duplication grew" }
+]

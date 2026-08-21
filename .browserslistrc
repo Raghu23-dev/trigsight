@@ -1,0 +1,9 @@
+# Modern baseline only. Next injects a 35 KB legacy polyfill bundle for older
+# targets; every browser that supports the WebGL2 and text-fragment features this
+# site depends on also supports ES2022 natively, so the polyfills are dead weight.
+# Measured: polyfills-*.js was 35.2 KB brotli of a 141 KB budget.
+last 2 Chrome versions
+last 2 Firefox versions
+last 2 Safari versions
+last 2 Edge versions
+not dead

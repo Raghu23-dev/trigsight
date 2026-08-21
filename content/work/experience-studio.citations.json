@@ -1,0 +1,22 @@
+[
+  {
+    "docId": "work/experience-studio",
+    "passage": "I replaced polling with a Server-Sent Events architecture carrying generation progress to the browser as it happened"
+  },
+  {
+    "docId": "work/experience-studio",
+    "passage": "The client tracks the last event id it processed and persists it, so a page refresh resumes from that point rather than replaying the entire run from zero"
+  },
+  {
+    "docId": "work/experience-studio",
+    "passage": "Replayed events are de-duplicated against a set of already-seen ids scoped to the session"
+  },
+  {
+    "docId": "work/experience-studio",
+    "passage": "why a step id must not change mid-session"
+  },
+  {
+    "docId": "work/experience-studio",
+    "passage": "Three separate streaming clients accumulated across the codebase, each with its own parser"
+  }
+]

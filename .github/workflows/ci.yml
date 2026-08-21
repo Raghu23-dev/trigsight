@@ -4,27 +4,48 @@ on:
   pull_request:
 permissions:
   contents: read
+
 jobs:
-  test:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
         with: { fetch-depth: 0 }
-      - uses: pnpm/action-setup@v4
-        with: { version: 10 }
       - uses: actions/setup-node@v6
-        with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
+        with: { node-version: 22, cache: npm }
+
+      - run: npm ci
+
+      - name: content schema
+        run: npm run content
+
+      # The citation gate. A claim whose cited passage does not exist in its source
+      # fails the build here, before anything else runs.
+      - name: citation gate
+        run: npm run verify:citations
+
       - name: types
-        run: pnpm typecheck
-      - name: lint
-        run: pnpm lint
+        run: npm run typecheck
+
       - name: correctness tests
-        run: pnpm test:correctness
+        run: npm run test:correctness
+
       - name: adversarial tests
-        run: pnpm test:adversarial
+        run: npm run test:adversarial
+
+      # Retrieval quality. Exits non-zero below the recall threshold in
+      # docs/02-thesis.md, so a chunking or fusion regression cannot merge silently.
+      - name: retrieval eval
+        run: npm run eval:retrieval
+
       - name: build
-        run: pnpm build
+        run: npm run build
+
+      # Payload budget. Fails the job if initial JS exceeds the committed budget,
+      # which is what stops the site quietly getting heavier one dependency at a time.
+      - name: payload budget
+        run: ./bench/payload/measure.sh 3990 150
+
   secrets:
     runs-on: ubuntu-latest
     steps:

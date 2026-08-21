@@ -1,0 +1,44 @@
+{
+  "name": "trigsight",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "velite build && next dev",
+    "build": "npm run content && npm run verify:citations && next build --webpack",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "lint": "next lint",
+    "test": "vitest run",
+    "test:correctness": "vitest run tests/correctness",
+    "test:adversarial": "vitest run tests/adversarial",
+    "verify:citations": "tsx bench/citations/verify.ts",
+    "measure:payload": "bench/baseline/measure-payload.sh",
+    "content": "velite build",
+    "eval:retrieval": "tsx bench/retrieval/eval.ts --k 5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@types/three": "^0.185.4",
+    "postcss": "^8.5.26",
+    "tailwindcss": "4.3.3",
+    "tsx": "^4.19.2",
+    "typescript": "^5.9.3",
+    "velite": "^0.4.0",
+    "vitest": "^4.1.10",
+    "zod": "^4.4.3"
+  },
+  "dependencies": {
+    "@react-three/fiber": "9.7.0",
+    "next": "16.3.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "three": "0.185.1"
+  }
+}

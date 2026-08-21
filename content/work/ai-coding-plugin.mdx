@@ -1,0 +1,76 @@
+---
+title: AI Coding Assistant for VS Code
+summary: An in-editor coding agent with codebase retrieval, a 26-tool layer, conversational memory, skills, and human-gated execution.
+category: Developer Tools
+period: "2026"
+order: 6
+stack:
+  - TypeScript
+  - VS Code Extension API
+  - React
+  - Python
+  - FastAPI
+  - SQLite
+  - Server-Sent Events
+metrics:
+  - label: Tools in the registry
+    value: "26"
+    verified: true
+  - label: Context providers
+    value: "10"
+    verified: true
+  - label: Stream event types consumed
+    value: "12"
+    verified: true
+---
+
+## The problem
+
+An in-editor agent has to do two things that pull against each other: act with enough
+autonomy to be faster than doing the work yourself, and never make a change you
+cannot see or undo. Get the balance wrong in one direction and it is a novelty; wrong
+in the other and it is a liability.
+
+## What I built
+
+I worked across the stack on the memory and conversational-memory systems, the skills
+and commands frameworks, the expanded tooling layer, multi-model support, and the
+upgrade from a single agent to a multi-agent model with sub-agents.
+
+### The extension owns the hands, the backend owns the reasoning
+
+A deliberate split. Tool execution, file access, diff application and local indexing
+live in the editor, where they belong — they need filesystem access and they must be
+fast. The agent loop, tool *selection* and multi-turn control live server-side. The
+extension holds no model credentials and runs no prompt loop.
+
+That boundary is also what makes multi-model support tractable: the client asks which
+models are available rather than knowing anything about providers.
+
+### Reviewable changes, not applied changes
+
+Edits surface as a vertical diff with per-hunk accept and reject. The mechanism that
+makes this reliable is revert-then-replay: rather than tracking incremental state as a
+user accepts and rejects hunks, the file returns to its original content and the
+accepted hunks are re-applied. Incremental application accumulates drift; replay from
+a known state cannot.
+
+### Ordering preserved across an async stream
+
+Text, reasoning and tool-call blocks arrive interleaved over the stream and are
+stamped with a sequence number, then merged into a single timeline for rendering.
+Without that, a slow tool result renders after text that logically preceded it and the
+transcript reads as nonsense.
+
+### Autonomy as a ladder, not a switch
+
+Approval runs through tiers: always-ask for anything at the tool limit, an allowlist
+for low-risk reads, then project-level and session-level rules. A user can grant
+standing permission for the safe things without granting it for everything.
+
+## Honest limitations
+
+The extension has no automated test suite, and its CI runs security scanning only —
+no lint, no typecheck, no tests. Around a thousand lines of built-but-unwired
+features sit in the tree. Both are the predictable cost of shipping fast against a
+moving product, and both are the first things I would fix.
