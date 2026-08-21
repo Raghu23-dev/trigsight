@@ -25,3 +25,13 @@ updates:
       # a v10-compatible eslint-plugin-react.
       - dependency-name: "eslint"
         versions: ["10.x"]
+
+      # typescript-eslint refuses to run against TypeScript 7:
+      #
+      #   Error: typescript-eslint does not support TS 7.0.
+      #
+      # so the lint step exits before checking anything. Same shape as the ESLint 10 case above —
+      # the dependency itself is fine, a tool consuming it has not caught up. Remove once
+      # typescript-eslint announces TS 7 support.
+      - dependency-name: "typescript"
+        versions: ["7.x"]
