@@ -169,3 +169,63 @@ describe("hybrid retriever", () => {
     if (hits.length > 1) expect(total).toBeLessThanOrEqual(60);
   });
 });
+
+describe("paragraph-aware chunking", () => {
+  /**
+   * These pin a bug that was invisible for the worst possible reason: the function was NAMED
+   * splitLong and DOCUMENTED as splitting "on paragraph boundaries", while `renderToText`
+   * collapsed every run of whitespace to a single space before it ran. The blank lines marking
+   * paragraphs were already gone, so it could only ever pack sentences to a character limit.
+   *
+   * It made no difference to recall@5 — see bench/retrieval/results/2026-08-21-chunking.md — so
+   * these tests exist to stop the behaviour silently reverting, not to defend a metric.
+   */
+  const doc = (body: string) =>
+    chunkDocument({ docId: "t/doc", docTitle: "Doc", path: "/t/doc", body });
+
+  it("cuts on a blank line rather than mid-paragraph", () => {
+    const a = "Alpha ".repeat(70).trim();
+    const b = "Bravo ".repeat(70).trim();
+    const chunks = doc(`## Section\n\n${a}\n\n${b}\n`);
+
+    expect(chunks.length).toBeGreaterThan(1);
+    // No chunk may contain words from both paragraphs: that is the whole point.
+    const mixed = chunks.filter((c) => c.text.includes("Alpha") && c.text.includes("Bravo"));
+    expect(mixed).toEqual([]);
+  });
+
+  it("keeps a short paragraph whole instead of merging it into an over-budget chunk", () => {
+    const long = "Sentence about one thing. ".repeat(30).trim();
+    const short = "A distinct final point.";
+    const chunks = doc(`## Section\n\n${long}\n\n${short}\n`);
+
+    const holder = chunks.find((c) => c.text.includes("A distinct final point"));
+    expect(holder).toBeDefined();
+    expect(holder!.text.length).toBeLessThan(900);
+  });
+
+  it("still splits a single paragraph that exceeds the budget on its own", () => {
+    // A paragraph over budget has to be cut somewhere. Sentences are the least bad boundary,
+    // and refusing to cut at all would let one paragraph dominate the context budget.
+    const runOn = "This is a sentence that carries some weight. ".repeat(40).trim();
+    const chunks = doc(`## Section\n\n${runOn}\n`);
+
+    expect(chunks.length).toBeGreaterThan(1);
+    for (const c of chunks) expect(c.text.length).toBeLessThanOrEqual(800);
+  });
+
+  it("does not emit a chunk per paragraph when they fit together", () => {
+    // The opposite failure: chunks so small they carry no signal. Three short paragraphs under
+    // one heading belong in one chunk.
+    const chunks = doc("## Section\n\nFirst short point here.\n\nSecond one.\n\nThird one.\n");
+    expect(chunks).toHaveLength(1);
+  });
+
+  it("carries the heading trail onto every chunk of a split section", () => {
+    const body = `## Outer\n\n### Inner\n\n${"Filler sentence here. ".repeat(60).trim()}\n`;
+    const chunks = doc(body);
+    expect(chunks.length).toBeGreaterThan(1);
+    for (const c of chunks) expect(c.headings).toEqual(["Outer", "Inner"]);
+  });
+});
+
