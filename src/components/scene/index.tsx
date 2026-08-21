@@ -61,13 +61,23 @@ function canRun(): boolean {
 }
 
 export function Scene() {
-  const [decision, setDecision] = useState<Decision>("pending");
+  // LAZY INITIAL STATE, not a setState inside the effect.
+  //
+  // `canRun()` reads `navigator` and `window`, so it cannot run during a server render — hence
+  // the typeof guard, which yields "pending" on the server and a real decision on the client's
+  // first render.
+  //
+  // The earlier version started at "pending" and called setDecision("skip") synchronously inside
+  // the effect. That is a cascading render for every visitor whose device fails a guard — which
+  // is exactly the low-powered device the guard exists to protect. Caught by ESLint's
+  // react-hooks/set-state-in-effect rule, which had never run because `next lint` was removed in
+  // Next 16 and the script had been silently broken.
+  const [decision, setDecision] = useState<Decision>(() =>
+    typeof window === "undefined" ? "pending" : canRun() ? "pending" : "skip",
+  );
 
   useEffect(() => {
-    if (!canRun()) {
-      setDecision("skip");
-      return;
-    }
+    if (decision === "skip") return;
 
     const idle =
       (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number })
@@ -80,7 +90,7 @@ export function Scene() {
       if (cancel !== undefined) cancel(handle as number);
       else window.clearTimeout(handle as number);
     };
-  }, []);
+  }, [decision]);
 
   if (decision !== "mount") return null;
 
