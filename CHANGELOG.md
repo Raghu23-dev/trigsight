@@ -4,6 +4,8 @@ Generated from Conventional Commits. Notable changes per release.
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-08-21
+
 ### Fixed
 - **`bench/baseline/measure-payload.sh` never implemented the `noModule` exclusion its own
   results doc describes.** The regex `<script[^>]+src="…"` matches tags where `src` precedes
