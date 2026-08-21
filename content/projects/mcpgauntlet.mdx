@@ -1,0 +1,109 @@
+---
+title: MCP Protocol Conformance Auditing
+summary: Protocol conformance is mechanically checkable, and checking it finds real defects in servers whose authors have read the spec. The first server audited was my own; it failed 6 of 8 MUSTs.
+category: Protocols / Tooling
+period: "2026"
+order: 3
+live: https://mcpgauntlet.vercel.app
+repo: https://github.com/Raghu23-dev/mcpgauntlet
+headline: 4 of 5 public MCP servers accept requests from any website
+limitation: No audited server implements the revision being checked. All five target earlier revisions, so 26 of 31 findings are version gaps rather than defects — and a naive audit would have reported all 31 as violations.
+reproduce: python bench/conformance/third_party.py
+stack:
+  - Python
+  - httpx
+  - FastAPI
+  - Vercel
+metrics:
+  - label: Servers accepting a hostile Origin
+    value: 4 of 5
+    verified: true
+  - label: Rules, each citing a clause
+    value: "11"
+    verified: true
+  - label: False positives on a conformant server
+    value: "0"
+    verified: true
+  - label: My own server's first audit
+    value: 6 of 8 MUSTs failed
+    verified: true
+---
+
+## The problem
+
+Existing security scanners flag roughly 97% of servers at under 50% true-positive rates. That is
+noise, and noise teaches its user to ignore the tool.
+
+Protocol conformance is different: the specification writes down exactly what a server MUST do, so
+a check either cites a clause or it is one person's opinion.
+
+The premise was testable and the first test was uncomfortable. **The first server audited was my
+own portfolio's MCP endpoint, and it violated 6 of 8 MUSTs** — written by someone who had read the
+specification while writing it.
+
+## The mechanism
+
+Eleven rules, 8 MUST and 3 SHOULD, each carrying the clause it enforces and the reason it exists.
+Ten probes, all read-only. A verdict of `INCONCLUSIVE` when a response is ambiguous, because
+guessing is how a tool earns its reputation for noise.
+
+The rule that makes it trustworthy is criterion 3: **zero findings against a reference server built
+strictly to spec.** A checker that flags a correct server is worse than no checker.
+
+That reference server is deployed publicly, so anyone can verify the claim in one request rather
+than take a README's word for it.
+
+## The finding
+
+Five public MCP servers, chosen for implementation diversity, reachable without credentials. Each
+sent an identical request twice — once with no `Origin`, once with `Origin: https://attacker.example`:
+
+| Server | Operator | No Origin | Hostile Origin | |
+|---|---|---|---|---|
+| learn.microsoft.com/api/mcp | Microsoft | 200 | **200** | accepts |
+| knowledge-mcp.global.api.aws | AWS | 200 | **200** | accepts |
+| mcp.deepwiki.com/mcp | Cognition | 200 | **200** | accepts |
+| gitmcp.io/docs | idosal | 200 | **200** | accepts |
+| **docs.mcp.cloudflare.com/mcp** | **Cloudflare** | 200 | **403** | **rejects** |
+
+Cloudflare is the control: same probe, same request shape, correct rejection — so the four
+acceptances are a property of those servers rather than of the tool.
+
+`Origin` validation is the specification's defence against DNS rebinding, and the only rule whose
+absence is directly exploitable from a browser. It has been a MUST since the Streamable HTTP
+transport was introduced, so this is not a version gap.
+
+Every probe is read-only. No exploit was attempted — the finding rests entirely on a status code.
+
+## The more useful finding came from asking before measuring
+
+Before auditing anything, each target was asked which revision it speaks. **None implements the
+current one.** All target 2025-03-26 or 2025-06-18.
+
+That revision removed sessions and the GET stream and added mandatory request-metadata headers, so
+an older server fails most of its MUSTs *by construction* while being perfectly conformant to what
+it targets. A naive run would have reported roughly 40 violations across five servers — every one
+technically accurate and completely misleading, and exactly the noise this tool exists not to add
+to.
+
+Findings are now classified: **version gap** (reported, never counted) versus **real defect** (the
+rule is unchanged across revisions, so the server's own target requires it too). Under that split:
+26 version gaps, 5 real defects.
+
+## What went wrong
+
+**The Origin probe was wrong and still reported four vulnerabilities.** It sent one request with a
+hostile header and failed the server on any non-403 response. Right conclusion, worthless evidence:
+those servers returned **400**, which is a rejection — they refuse a current-revision request on
+protocol grounds before `Origin` is ever evaluated. The probe was measuring version mismatch and
+calling it a security hole.
+
+It is now paired: the same request with and without the header, using a shape the server accepts,
+with the verdict taken only from the difference. A rejected baseline yields `INCONCLUSIVE` rather
+than a verdict — which also correctly stopped crediting Cloudflare for a property that had not been
+observed.
+
+**A load-test cliff turned out to be the harness's own.** 769× p99 degradation, and quadrupling the
+server's workers moved throughput by 1%. The bottleneck was the client. Ceiling calibration was
+added, then recalibrated after the first threshold produced a false positive at a 9% run-to-run
+swing.

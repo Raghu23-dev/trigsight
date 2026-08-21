@@ -1,5 +1,5 @@
 import { Tools, TOOL_SCHEMAS, type Doc } from "../../../lib/mcp/tools";
-import { work } from "../../../lib/content";
+import { projects, work } from "../../../lib/content";
 
 /**
  * MCP endpoint — stateless Streamable HTTP.
@@ -44,17 +44,20 @@ let tools: Tools | null = null;
 
 function getTools(origin: string): Tools {
   if (tools !== null) return tools;
-  const docs: Doc[] = work.map((w) => ({
-    id: w.id,
-    title: w.title,
-    path: w.path,
-    summary: w.summary,
-    category: w.category,
-    period: w.period,
-    stack: w.stack,
-    metrics: w.metrics,
+  // Projects first, then work. `find_evidence` and `check_stack` search this list, so an agent
+  // asking whether a claim is supported should hit the independently verifiable material before
+  // the generically described employer work.
+  const docs: Doc[] = [...projects, ...work].map((d) => ({
+    id: d.id,
+    title: d.title,
+    path: d.path,
+    summary: d.summary,
+    category: d.category,
+    period: d.period,
+    stack: d.stack,
+    metrics: d.metrics,
     // Velite's build output, not the filesystem — see the chat route for why.
-    body: w.raw,
+    body: d.raw,
   }));
   tools = new Tools(docs, origin);
   return tools;

@@ -1,0 +1,9 @@
+[
+  { "docId": "projects/onewayglass", "passage": "The gap between what was asked for and what came back is a function of how many restricted documents matched" },
+  { "docId": "projects/onewayglass", "passage": "Monotonically falling as permission rises, exactly zero for someone who reads everything" },
+  { "docId": "projects/onewayglass", "passage": "for any two principals issuing the same query, the observable result count is identical" },
+  { "docId": "projects/onewayglass", "passage": "recall by 7.7%, which was not the prediction \u2014 the thesis budgeted for up to 5% loss" },
+  { "docId": "projects/onewayglass", "passage": "because padding appends pre-sorted documents rather than scoring more candidates" },
+  { "docId": "projects/onewayglass", "passage": "Padded results share no terms with the query" },
+  { "docId": "projects/onewayglass", "passage": "Count-stability defeats an observer of the count. It does not defeat the recipient of the results" }
+]

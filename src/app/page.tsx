@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Scene } from "../components/scene";
-import { work } from "../lib/content";
+import { projects, work } from "../lib/content";
 import allowlist from "../generated/citation-allowlist.json";
 import payload from "../generated/payload.json";
 
@@ -69,6 +69,46 @@ export default function Home() {
           Ask about the work →
         </Link>
       </nav>
+
+      {/* Projects lead. They are the only work here with a live instance, a public repo and a
+          benchmark a reader can re-run — so burying them under generically-described employer
+          work would put the weakest evidence first. */}
+      <section className="mt-20">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-mono text-2xs uppercase tracking-[0.2em] text-fg-subtle">
+            Projects
+          </h2>
+          <Link
+            href="/projects"
+            className="font-mono text-2xs text-accent hover:underline"
+          >
+            All three →
+          </Link>
+        </div>
+        <ul className="mt-6 space-y-px">
+          {projects.map((p) => (
+            <li key={p.id}>
+              <Link
+                href={p.path}
+                className="block border border-border bg-surface p-5 transition-colors hover:border-accent-dim hover:bg-surface-raised"
+              >
+                <div className="flex flex-wrap items-baseline gap-x-3">
+                  <span className="font-mono text-2xs uppercase tracking-[0.2em] text-fg-subtle">
+                    {p.category}
+                  </span>
+                </div>
+                <h3 className="mt-2 font-display text-lg leading-snug tracking-tight text-fg">
+                  {p.title}
+                </h3>
+                <p className="mt-2 font-mono text-sm leading-relaxed text-pass">
+                  {p.headline}
+                </p>
+                <p className="mt-2 text-sm leading-relaxed text-fg-muted">{p.summary}</p>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <section className="mt-20">
         <h2 className="font-mono text-2xs uppercase tracking-[0.2em] text-fg-subtle">
