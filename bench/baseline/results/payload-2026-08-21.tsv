@@ -1,0 +1,6 @@
+# Initial JS payload, measured 2026-08-21. 3 identical runs (immutable CDN assets → zero variance).
+# harness: bench/baseline/measure-payload.sh
+site	html_bytes	scripts	js_bytes	js_kb	total_initial_kb
+reference-portfolio	37996	21	433570	423.4	460.5
+raghurr.pages.dev	2080	4	61836	60.4	62.4
+example.com (control)	1256	0	0	0.0	0.3
