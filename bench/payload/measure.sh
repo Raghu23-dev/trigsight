@@ -1,9 +1,18 @@
 #!/usr/bin/env bash
-# Measures OUR payload as production serves it: brotli-compressed transfer bytes.
+# LOCAL pre-deploy budget check. Not the published figure — see below.
 #
-# Why not curl against localhost: `next start` serves uncompressed, so a naive
-# curl overstates transfer by ~2.4x. Vercel serves brotli. This script compresses
-# each asset locally at the same quality to estimate real transfer.
+# Builds locally, then compresses each asset with Node's brotli at quality 11 to
+# ESTIMATE transfer. Useful before deploying, because `next start` serves
+# uncompressed and a naive curl against localhost overstates transfer by ~2.4x.
+#
+# NOT comparable to the numbers in docs/05-results.md. Vercel's brotli is not
+# quality 11, so this understates real transfer by ~23 KB: it reports ~110 KB where
+# the deployment actually ships 133.9 KB. Publishing this figure against a
+# competitor measured on ITS deployment mixed two methods in one table and
+# overstated the gap as 3.4x when it is 2.8x.
+#
+# For any published claim use the deployed-transfer harness instead:
+#   ./bench/baseline/measure-payload.sh https://trigsight.vercel.app/
 set -euo pipefail
 PORT="${1:-3990}"
 BUDGET_KB="${2:-150}"
