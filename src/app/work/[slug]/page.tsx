@@ -20,6 +20,9 @@ export async function generateMetadata({
     title: doc.title,
     description: doc.summary,
     openGraph: { title: doc.title, description: doc.summary, type: "article" },
+    // Advertise the plain-markdown variant. An agent that prefers markdown can
+    // discover it from the HTML rather than guessing at a URL convention.
+    alternates: { types: { "text/markdown": `${doc.path}/md` } },
   };
 }
 
