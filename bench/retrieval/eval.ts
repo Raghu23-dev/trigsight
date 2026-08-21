@@ -17,6 +17,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { documentFiles } from "../citations/discover.ts";
 import { chunkDocument, type Chunk } from "../../src/lib/retrieval/chunk.ts";
 import { LocalTrigramBackend, Retriever, type VectorBackend } from "../../src/lib/retrieval/retrieve.ts";
+import { upstashFromEnv } from "../../src/lib/retrieval/upstash.ts";
 
 interface Golden {
   readonly queries: ReadonlyArray<{ q: string; docs: readonly string[] }>;
@@ -93,6 +94,15 @@ async function main(): Promise<void> {
   runs.push(await evaluate("lexical only", chunks, null, golden, k));
   runs.push(await evaluate("hybrid (local trigram)", chunks, new LocalTrigramBackend(chunks), golden, k));
 
+  // Real embeddings, when configured. Skipped rather than faked when absent, so the
+  // results table never implies a measurement that did not happen.
+  const upstash = upstashFromEnv();
+  if (upstash !== null) {
+    runs.push(await evaluate("hybrid (real embeddings)", chunks, upstash, golden, k));
+  } else {
+    console.log("(UPSTASH_VECTOR_* not set — real-embedding row skipped)\n");
+  }
+
   if (asJson) {
     const payload = { k, chunks: chunks.length, runs, measuredAt: new Date().toISOString().slice(0, 10) };
     writeFileSync("bench/retrieval/results/latest.json", `${JSON.stringify(payload, null, 2)}\n`);
@@ -107,19 +117,25 @@ async function main(): Promise<void> {
     );
   }
 
-  const best = runs.reduce((a, b) => (b.recallAtK > a.recallAtK ? b : a));
+  // Tie-break on MRR. Two configs can share recall@k while one ranks relevant chunks
+  // consistently higher, and MRR is the metric that matters here because only the top
+  // few chunks reach the model. Without this the report named the wrong config "best".
+  const best = runs.reduce((a, b) =>
+    b.recallAtK > a.recallAtK || (b.recallAtK === a.recallAtK && b.mrr > a.mrr) ? b : a,
+  );
   if (best.misses.length > 0) {
     console.log(`\nmissed by the best config (${best.config}):`);
     for (const m of best.misses) console.log(`  ${m}`);
   }
 
   console.log(
-    "\nNOTE: the local trigram backend is a deterministic stand-in for testing the",
+    "\nNOTE: the local trigram backend is a deterministic stand-in for testing fusion",
   );
   console.log(
-    "fusion and budgeting logic offline. It is NOT a semantic embedding model, and",
+    "and budgeting offline. It is NOT a semantic model and its numbers must not be",
   );
-  console.log("its numbers must not be reported as embedding-model performance.");
+  console.log("reported as embedding-model performance. The 'real embeddings' row is");
+  console.log("text-embedding-3-small at 1536 dims, cosine, served by Upstash Vector.");
 
   const THRESHOLD = 0.85;
   if (best.recallAtK < THRESHOLD) {
