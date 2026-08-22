@@ -73,9 +73,14 @@ jobs:
         continue-on-error: true
         run: |
           fail=""
+          # `content` FIRST. Velite generates .velite/index.d.ts, and src/lib/content.ts imports
+          # from it — so tsc reports 10 module-resolution errors on a clean checkout if the
+          # content layer has not been built yet. The first version of this gate ran typecheck
+          # first and raised a health issue for "types" on a repo that typechecks cleanly.
+          npm run content || fail="$fail content"
           npm run typecheck || fail="$fail types"
           npm run lint || fail="$fail lint"
-          npm run content && npm run verify:citations || fail="$fail citations"
+          npm run verify:citations || fail="$fail citations"
           npm test || fail="$fail tests"
           echo "failed=${fail# }" >> "$GITHUB_OUTPUT"
           [ -z "$fail" ] || echo "### Failing gates:$fail" >> "$GITHUB_STEP_SUMMARY"
