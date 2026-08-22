@@ -30,7 +30,7 @@ const PROTOCOL_VERSION = "2026-07-28";
  * Conformance note.
  *
  * This route was originally written from summary notes and violated 6 of 8 MUST
- * requirements of revision 2026-07-28 — found by auditing it with mcpgauntlet, not by
+ * requirements of revision 2026-07-28 — found by auditing it with mcpgantlet, not by
  * review. The violations were: GET returned content instead of 405, a POST without
  * MCP-Protocol-Version was accepted, a header contradicting the body was accepted, an
  * unknown method returned 200 instead of 404/-32601, `initialize` was answered while
