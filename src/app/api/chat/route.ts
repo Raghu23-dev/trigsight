@@ -2,6 +2,7 @@ import { chunkDocument, type Chunk } from "../../../lib/retrieval/chunk";
 import { LocalTrigramBackend, Retriever } from "../../../lib/retrieval/retrieve";
 import { upstashFromEnv } from "../../../lib/retrieval/upstash";
 import { projects, work } from "../../../lib/content";
+import allowlist from "../../../generated/citation-allowlist.json";
 
 /**
  * Grounded chat.
@@ -54,18 +55,52 @@ function getRetriever(): Retriever {
   return retriever;
 }
 
-function systemPrompt(context: string): string {
+/**
+ * The passages this answer is allowed to cite, for the documents actually retrieved.
+ *
+ * WHY THIS EXISTS. The model used to be told "quote verbatim from the context" and was then
+ * judged against a build-time allowlist it had never seen. It quoted real sentences from the
+ * retrieved chunks — correctly, by the instruction it was given — and every one failed to
+ * resolve, because only 34 hand-verified passages are citable. Measured live: 0 of 3 resolved.
+ *
+ * A citation that cannot resolve is dropped silently by `segment()`, so the prose stayed true
+ * and no chip rendered. The site's central mechanism was inert while looking like it worked.
+ *
+ * Scoped to the retrieved docs rather than all 56 entries: sending the whole allowlist on every
+ * request wastes context on passages the answer cannot use, and invites citing a document the
+ * retriever never surfaced.
+ */
+function citablePassages(docIds: readonly string[]): string {
+  const lines: string[] = [];
+  for (const key of Object.keys(allowlist)) {
+    const [docId, passage] = key.split("::");
+    if (docId === undefined || passage === undefined) continue;
+    if (!docIds.includes(docId)) continue;
+    lines.push(`  [[cite:${docId}|${passage}]]`);
+  }
+  return lines.join("\n");
+}
+
+function systemPrompt(context: string, citable: string): string {
   return `You answer questions about Raghuram P's engineering work, using only the context below.
 
 CITATIONS — the most important rule:
-When you state a fact drawn from the context, cite it by emitting a token in exactly
-this form, quoting the source text VERBATIM:
+You may ONLY cite from the exact list of citable passages given below. Copy a line from that
+list character-for-character, including its docId. Any other citation is discarded silently,
+so a citation you invent is worse than none — the reader loses the evidence and never knows.
 
-  [[cite:<docId>|<exact sentence from the context>]]
+Do NOT add words inside the citation. Not a clause, not a connective, not "and then X". If the
+listed passage does not say everything you want to say, put your own words OUTSIDE the token and
+keep the token exactly as listed. A citation with your prose appended to it is discarded.
 
-The quoted text must appear character-for-character in the context. Never paraphrase
-inside a citation. Never write a URL, link, or markdown link — you cannot produce
-links, and any URL you write will be discarded.
+Correct:   The legs are fused with RRF [[cite:doc|listed passage exactly as given]], then reranked.
+Wrong:     [[cite:doc|listed passage exactly as given, then reranked.]]
+
+CITABLE PASSAGES — copy one of these lines verbatim to cite it:
+${citable || "  (none available for this question — answer without citations)"}
+
+Never paraphrase inside a citation. Never write a URL, link, or markdown link — you cannot
+produce links, and any URL you write will be discarded.
 
 SCOPE:
 If the context does not answer the question, say so plainly and point the reader to
@@ -137,6 +172,9 @@ export async function POST(request: Request): Promise<Response> {
     )
     .join("\n\n");
 
+  // Scoped to the documents this answer can actually draw on.
+  const citable = citablePassages([...new Set(hits.map((h) => h.chunk.docId))]);
+
   // Any OpenAI-compatible endpoint. Hardcoding Vercel's gateway made the chat unusable the
   // moment that gateway started requiring a card on file to release its free credits — the
   // deployment could not be pointed at a free alternative without a code change.
@@ -177,7 +215,7 @@ export async function POST(request: Request): Promise<Response> {
       max_tokens: MAX_OUTPUT_TOKENS,
       stream: true,
       messages: [
-        { role: "system", content: systemPrompt(context) },
+        { role: "system", content: systemPrompt(context, citable) },
         ...messages.map((m) => ({
           role: m.role === "assistant" ? "assistant" : "user",
           content: m.content,
