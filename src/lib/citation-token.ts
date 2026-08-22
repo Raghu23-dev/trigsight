@@ -26,9 +26,31 @@ export function resolveToken(
   docId: string,
   passage: string,
 ): ResolvedCitation | null {
-  const entry = allowlist[`${docId}::${passage.trim()}`];
-  if (entry === undefined) return null;
-  return { docId, passage: passage.trim(), href: entry.href, quote: entry.quote };
+  const wanted = passage.trim();
+  const exact = allowlist[`${docId}::${wanted}`];
+  if (exact !== undefined) {
+    return { docId, passage: wanted, href: exact.href, quote: exact.quote };
+  }
+
+  // TRAILING SENTENCE PUNCTUATION IS TOLERATED, and only that.
+  //
+  // A model quoting a passage that ends a sentence naturally completes it with a full stop. The
+  // allowlist stores the passage without one, so exact matching rejected a genuinely correct
+  // citation over a single character — measured live at 2 of 3 failures, both punctuation-only.
+  //
+  // The relaxation is deliberately one character wide. Anything looser starts accepting
+  // paraphrase, which is the failure this whole mechanism exists to prevent: a citation that
+  // resolves to a passage the model reworded is worse than one that does not resolve at all,
+  // because it renders a chip that misquotes the source.
+  const trimmed = wanted.replace(/[.,;:!?]+$/, "");
+  if (trimmed !== wanted) {
+    const relaxed = allowlist[`${docId}::${trimmed}`];
+    if (relaxed !== undefined) {
+      return { docId, passage: trimmed, href: relaxed.href, quote: relaxed.quote };
+    }
+  }
+
+  return null;
 }
 
 export interface Segment {

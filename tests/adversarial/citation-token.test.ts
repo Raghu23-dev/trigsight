@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { segment, unresolvedTokens, type Allowlist } from "../../src/lib/citation-token.ts";
+import {
+  resolveToken,
+  segment,
+  unresolvedTokens,
+  type Allowlist,
+} from "../../src/lib/citation-token.ts";
 
 const allowlist: Allowlist = {
   "work/a::a real verified passage": {
@@ -62,5 +67,54 @@ describe("segmentation", () => {
       allowlist,
     );
     expect(segs.filter((s) => s.type === "citation")).toHaveLength(2);
+  });
+});
+
+describe("trailing punctuation is tolerated, paraphrase is not", () => {
+  /**
+   * A model quoting a passage that ends a sentence completes it with a full stop. The allowlist
+   * stores the passage without one, so exact matching rejected genuinely correct citations —
+   * measured live at 2 of 3 failures, both punctuation-only.
+   *
+   * The relaxation is one character wide on purpose. These tests pin BOTH halves: that the
+   * punctuation case now resolves, and that nothing looser does. A citation resolving to a
+   * paraphrase is worse than one that fails, because it renders a chip that misquotes the source.
+   */
+  const allow: Allowlist = {
+    "work/x::the ledger is shared across instances": {
+      href: "/work/x#:~:text=the%20ledger%20is%20shared%20across%20instances",
+      quote: "the ledger is shared across instances",
+      ambiguous: false,
+    },
+  };
+
+  it("resolves when the model adds a trailing full stop", () => {
+    expect(resolveToken(allow, "work/x", "the ledger is shared across instances.")).not.toBeNull();
+  });
+
+  it("resolves for other trailing sentence punctuation", () => {
+    for (const p of [",", ";", ":", "!", "?"]) {
+      expect(resolveToken(allow, "work/x", `the ledger is shared across instances${p}`)).not.toBeNull();
+    }
+  });
+
+  it("still resolves the exact passage", () => {
+    expect(resolveToken(allow, "work/x", "the ledger is shared across instances")).not.toBeNull();
+  });
+
+  it("REJECTS a paraphrase", () => {
+    expect(resolveToken(allow, "work/x", "the ledger is shared between instances")).toBeNull();
+  });
+
+  it("REJECTS a truncation", () => {
+    expect(resolveToken(allow, "work/x", "the ledger is shared")).toBeNull();
+  });
+
+  it("REJECTS punctuation in the middle rather than the end", () => {
+    expect(resolveToken(allow, "work/x", "the ledger is, shared across instances")).toBeNull();
+  });
+
+  it("REJECTS a passage attributed to the wrong document", () => {
+    expect(resolveToken(allow, "work/y", "the ledger is shared across instances.")).toBeNull();
   });
 });
