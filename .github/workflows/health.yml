@@ -1,0 +1,122 @@
+name: health
+
+# The automation floor for the Node repo. Same contract as the Python flagships: scan daily, raise
+# one rolling issue on a finding, close it when green.
+on:
+  schedule:
+    # 06:00 IST = 00:30 UTC. Off the hour deliberately — GitHub delays scheduled jobs queued at
+    # popular times.
+    - cron: "30 0 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v7
+        with: { node-version: "24", cache: npm }
+      - run: npm ci
+
+      # `npm audit --json` exits non-zero when it finds something, so it must not fail the step.
+      #
+      # An empty or unparseable report is treated as a BROKEN SCAN, never a clean one. The Python
+      # version of this workflow shipped with exactly that bug: pip-audit wrote zero bytes and the
+      # parser read it as "no vulnerabilities", so the job passed with a known-vulnerable
+      # dependency planted as a control.
+      - name: audit dependencies
+        id: audit
+        continue-on-error: true
+        run: |
+          npm audit --json > audit.json 2>audit.err || true
+          node - <<'JS'
+          const fs = require("node:fs");
+          const out = process.env.GITHUB_OUTPUT, sum = process.env.GITHUB_STEP_SUMMARY;
+          const raw = fs.readFileSync("audit.json", "utf8").trim();
+          if (raw.length === 0) {
+            console.error("::error::npm audit produced no output — the scan did not run");
+            fs.appendFileSync(out, "count=-1\njson<<EOF\n[]\nEOF\n");
+            fs.writeFileSync(sum, "## Dependency scan FAILED\n\n`npm audit` produced no output. This is not a clean result — the scan did not run.\n");
+            process.exit(0);
+          }
+          let data;
+          try { data = JSON.parse(raw); }
+          catch (e) {
+            console.error(`::error::npm audit output was not valid JSON: ${e.message}`);
+            fs.appendFileSync(out, "count=-1\njson<<EOF\n[]\nEOF\n");
+            fs.writeFileSync(sum, "## Dependency scan FAILED\n\n`npm audit` returned unparseable output.\n");
+            process.exit(0);
+          }
+          // Only high and critical. Moderate advisories in a dev-only transitive dependency are
+          // noise for a static site, and a daily issue nobody acts on is a daily issue nobody reads.
+          const vulns = Object.values(data.vulnerabilities ?? {})
+            .filter((v) => v.severity === "high" || v.severity === "critical")
+            .map((v) => ({
+              name: v.name,
+              severity: v.severity,
+              via: (v.via ?? []).map((x) => (typeof x === "string" ? x : x.title)).filter(Boolean).slice(0, 2).join("; ") || "transitive",
+              fix: v.fixAvailable === true ? "yes" : v.fixAvailable?.name ? `${v.fixAvailable.name}@${v.fixAvailable.version}` : "none",
+            }));
+          fs.appendFileSync(out, `count=${vulns.length}\njson<<EOF\n${JSON.stringify(vulns)}\nEOF\n`);
+          fs.writeFileSync(sum, vulns.length
+            ? "## Vulnerable dependencies (high/critical)\n\n| Package | Severity | Advisory | Fix |\n|---|---|---|---|\n"
+              + vulns.map((v) => `| ${v.name} | ${v.severity} | ${v.via} | ${v.fix} |`).join("\n") + "\n"
+            : "## Dependencies\n\nNo high or critical advisories.\n");
+          JS
+
+      - name: gates
+        id: gates
+        continue-on-error: true
+        run: |
+          fail=""
+          npm run typecheck || fail="$fail types"
+          npm run lint || fail="$fail lint"
+          npm run content && npm run verify:citations || fail="$fail citations"
+          npm test || fail="$fail tests"
+          echo "failed=${fail# }" >> "$GITHUB_OUTPUT"
+          [ -z "$fail" ] || echo "### Failing gates:$fail" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: raise an issue if anything is wrong
+        if: steps.audit.outputs.count != '0' || steps.gates.outputs.failed != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COUNT: ${{ steps.audit.outputs.count }}
+          FINDINGS: ${{ steps.audit.outputs.json }}
+          FAILED: ${{ steps.gates.outputs.failed }}
+        run: |
+          node - <<'JS' > body.md
+          const count = process.env.COUNT ?? "0", failed = process.env.FAILED ?? "";
+          const lines = ["Raised by the daily `health` workflow.\n"];
+          if (failed) lines.push(`**Failing gates:** ${failed}\n`);
+          if (count === "-1") {
+            lines.push("**The dependency scan itself failed to run.** Treated as a failure, not a clean result — see the workflow log.\n");
+          } else if (count !== "0") {
+            const rows = JSON.parse(process.env.FINDINGS || "[]");
+            lines.push(`**${count} high/critical advisor${count === "1" ? "y" : "ies"}:**\n`);
+            lines.push("| Package | Severity | Advisory | Fix |", "|---|---|---|---|");
+            for (const v of rows) lines.push(`| \`${v.name}\` | ${v.severity} | ${v.via} | ${v.fix} |`);
+            lines.push("");
+          }
+          lines.push("Reproduce locally:\n", "```bash\nnpm ci\nnpm audit\nnpm test\n```");
+          console.log(lines.join("\n"));
+          JS
+          existing=$(gh issue list --label health --state open --limit 1 --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file body.md
+          else
+            gh label create health --color B60205 --description "Raised by the daily health workflow" 2>/dev/null || true
+            gh issue create --title "health: dependency or gate failure" --label health --body-file body.md
+          fi
+
+      - name: close the issue when everything is green
+        if: steps.audit.outputs.count == '0' && steps.gates.outputs.failed == ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for n in $(gh issue list --label health --state open --json number --jq '.[].number'); do
+            gh issue close "$n" --comment "Green as of $(date -u +%Y-%m-%dT%H:%MZ): no high or critical advisories, all gates passing."
+          done
