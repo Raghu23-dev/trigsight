@@ -71,3 +71,49 @@ describe("chat provider is configuration, not a constant", () => {
     expect(note![1]).toContain("AI_GATEWAY_API_KEY");
   });
 });
+
+describe("a rate limit is not reported as an outage", () => {
+  /**
+   * WHY: the free tier allows 30 requests a minute. Exceeded, the route returned
+   * `{"error":"model gateway unavailable","status":429}` with a 502, and the UI printed that
+   * phrase verbatim — an internal string a visitor cannot act on, describing a working service.
+   *
+   * Found by probing this endpoint fast enough to trip the limit, then misreading the empty
+   * replies as a broken model and nearly changing CHAT_MODEL in production over it. The model was
+   * fine. Retrieval had already succeeded by the time the limit was hit, so the correct answer is
+   * "ask again shortly", not a failure.
+   */
+  it("distinguishes 429 from a genuine gateway failure", () => {
+    expect(ROUTE).toMatch(/upstream\.status === 429/);
+  });
+
+  it("answers 503 with Retry-After rather than 502", () => {
+    // 502 says the upstream is broken. 503 + Retry-After says it is busy and when to return,
+    // which is both true and actionable.
+    const block = /upstream\.status === 429[\s\S]{0,900}?\n {4}\}/.exec(ROUTE)?.[0] ?? "";
+    expect(block).toContain("503");
+    expect(block).toMatch(/retry-after/i);
+    expect(block).not.toContain("502");
+  });
+
+  it("the message a visitor sees names no internal component", () => {
+    const block = /upstream\.status === 429[\s\S]{0,900}?\n {4}\}/.exec(ROUTE)?.[0] ?? "";
+    expect(block).not.toMatch(/gateway unavailable/);
+    for (const jargon of ["upstream", "Groq", "502", "SSE"]) {
+      // The user-facing string is the one inside the quotes; jargon in a comment is fine, so
+      // check only the message literal.
+      const message = /error:\s*\n?\s*"([\s\S]*?)",\s*\n\s*status: 429/.exec(block)?.[1] ?? "";
+      expect(message).not.toContain(jargon);
+    }
+  });
+
+  it("still tells the reader the rest of the site works", () => {
+    const block = /upstream\.status === 429[\s\S]{0,900}?\n {4}\}/.exec(ROUTE)?.[0] ?? "";
+    expect(block).toMatch(/unaffected|everything else/i);
+  });
+
+  it("the json helper can set the header this path needs", () => {
+    // The helper took (payload, status) only, so Retry-After could not be sent at all.
+    expect(ROUTE).toMatch(/function json\(\s*payload: unknown,\s*status = 200,\s*extraHeaders/);
+  });
+});
