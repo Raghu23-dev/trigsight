@@ -23,10 +23,24 @@ export interface Chunk {
   readonly path: string;
   /** Heading trail, outermost first, e.g. ["What I built", "Reconnection…"]. */
   readonly headings: readonly string[];
-  /** Prose as rendered, whitespace-collapsed. What gets embedded. */
+  /** Prose as rendered, whitespace-collapsed. What a citation must quote verbatim. */
   readonly text: string;
   /** Normalised form, for lexical matching. */
   readonly normalised: string;
+  /**
+   * What retrieval matches against: the product name and title prepended to the prose.
+   *
+   * SEPARATE FROM `text` ON PURPOSE. A citation must quote `text` character-for-character, so
+   * anything added for retrieval must not appear there or the citation gate rejects the passage.
+   *
+   * WHY IT EXISTS: no project names itself in its own body. `projects/fusegrid` is titled
+   * "Cost Ceilings That Hold Under Concurrency" and its prose says "the ledger", "the
+   * reservation" — never "fusegrid". So the single most likely visitor question, "what is
+   * fusegrid", matched nothing in either leg and the chat answered "not in the provided
+   * material" about the site's own flagship. The name was in the id, the title and the URL, and
+   * in none of the text anybody searched.
+   */
+  readonly searchText: string;
   readonly tokenEstimate: number;
 }
 
@@ -101,6 +115,7 @@ export function chunkDocument(input: ChunkInput): Chunk[] {
         headings: section.headings,
         text: part,
         normalised: normalise(part),
+        searchText: buildSearchText(input, section.headings, part),
         tokenEstimate: estimateTokens(part),
       });
     }
@@ -109,11 +124,40 @@ export function chunkDocument(input: ChunkInput): Chunk[] {
   return chunks;
 }
 
+/**
+ * Prepend the document's identity to what retrieval searches.
+ *
+ * The slug is the product name as anyone types it — `projects/fusegrid` → `fusegrid`. The title
+ * and heading trail come along because they describe the section in words the prose assumes;
+ * "Cost Ceilings That Hold Under Concurrency" is how a reader would ask about it, and the body
+ * never repeats it.
+ *
+ * Prefix rather than suffix: BM25 is order-insensitive, but the trigram stand-in embeds a
+ * character window, and a name at the front survives truncation of a long chunk.
+ */
+function buildSearchText(
+  input: ChunkInput,
+  headings: readonly string[],
+  text: string,
+): string {
+  const slug = input.docId.includes("/")
+    ? input.docId.slice(input.docId.lastIndexOf("/") + 1)
+    : input.docId;
+  return [slug, input.docTitle, ...headings, text].filter((s) => s.length > 0).join(" ");
+}
+
 function rebuild(chunk: Chunk, text: string): Chunk {
   return {
     ...chunk,
     text,
     normalised: normalise(text),
+    // Rebuilt from the merged text, not carried over: a folded tail changes the prose, and a
+    // stale searchText would index the pre-merge content while `text` served the post-merge one.
+    searchText: buildSearchText(
+      { docId: chunk.docId, docTitle: chunk.docTitle, path: chunk.path, body: "" },
+      chunk.headings,
+      text,
+    ),
     tokenEstimate: estimateTokens(text),
   };
 }
