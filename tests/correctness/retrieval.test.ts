@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { chunkDocument, estimateTokens } from "../../src/lib/retrieval/chunk.ts";
-import { buildBm25, searchBm25, tokenise } from "../../src/lib/retrieval/bm25.ts";
+import { buildBm25, searchBm25, stem, tokenise } from "../../src/lib/retrieval/bm25.ts";
 import { fuse, RRF_K } from "../../src/lib/retrieval/fuse.ts";
 import { LocalTrigramBackend, Retriever } from "../../src/lib/retrieval/retrieve.ts";
+import { projects, work } from "../../src/lib/content.ts";
 
 const DOC = `---
 title: Streaming
@@ -344,5 +345,103 @@ Short.
     for (const chunk of withTail) {
       expect(chunk.searchText.toLowerCase()).toContain("onewayglass");
     }
+  });
+});
+
+describe("stemming lets a query and a document agree about the same word", () => {
+  /**
+   * WHY: one golden query missed at recall 0.976 — "what happens when two compactions run at once".
+   * The document answering it says "compaction" and "concurrent attempts", so BM25 contributed
+   * nothing: the query's most distinctive term differed from the document's by one letter, and the
+   * answer landed at rank 6 on the vector leg alone.
+   *
+   * Chosen over synonym expansion by measurement, not preference. Both reached 1.000 on the golden
+   * set, so the golden set could not tell them apart; eight held-out queries could — stemming 7/8,
+   * baseline 6/8. See bench/retrieval/results/2026-08-23-stemming.md.
+   *
+   * These tests pin the CONSERVATISM as much as the behaviour. Aggressive stripping is worse than
+   * none in technical prose, so the cases that must NOT be stemmed matter more than the ones that
+   * must.
+   */
+  it("merges a plural with its singular", () => {
+    expect(stem("compactions")).toBe("compaction");
+    expect(tokenise("two compactions")).toContain("compaction");
+  });
+
+  it("merges a plural nominalisation with its singular, without touching the noun", () => {
+    // `reservations` and `reservation` must agree. Stripping `-ation` as well made them DISAGREE
+    // (`reservation` → `reserv`), which is the opposite of the rule's purpose.
+    expect(stem("reservations")).toBe("reservation");
+    expect(stem("reservation")).toBe("reservation");
+  });
+
+  it("leaves -ing alone, because it was measured and earned nothing", () => {
+    // Identical golden (42/42) and held-out (7/8) scores with and without, while breaking
+    // idempotence on domain nouns that merely end in -ing.
+    expect(stem("ceiling")).toBe("ceiling");
+    expect(stem("embedding")).toBe("embedding");
+    expect(stem("filtering")).toBe("filtering");
+  });
+
+  it("never strips a word ending in double-s", () => {
+    for (const word of ["across", "access", "useless", "serverless"]) {
+      expect(stem(word)).toBe(word);
+    }
+  });
+
+  it("is idempotent over the entire corpus vocabulary", () => {
+    // A function whose output is not a fixed point cannot be applied to an already-stemmed index.
+    // Eighteen terms failed this before the double-s guard; five more before -ing was dropped.
+    const vocab = new Set([...projects, ...work].flatMap((d) => tokenise(d.raw)));
+    const unstable = [...vocab].filter((t) => stem(t) !== t);
+    expect(unstable).toEqual([]);
+  });
+
+  it("restores the y rather than truncating -ies", () => {
+    // "polic" matches no real word, so it would match no document either.
+    expect(stem("policies")).toBe("policy");
+  });
+
+  it("leaves a short word alone, because the stem would be shorter than the guard", () => {
+    for (const word of ["axes", "cache", "goes", "uses", "does"]) {
+      expect(stem(word)).toBe(word);
+    }
+  });
+
+  it("does not touch an identifier or a hyphenated term", () => {
+    expect(tokenise("call render_page now")).toContain("render_page");
+    expect(tokenise("human-in-the-loop gates")).toContain("human-in-the-loop");
+  });
+
+  it("is idempotent — stemming a stem changes nothing", () => {
+    for (const word of ["compactions", "filtering", "policies", "reservation"]) {
+      expect(stem(stem(word))).toBe(stem(word));
+    }
+  });
+
+  it("makes the previously-missed query find its document", async () => {
+    // Against the REAL corpus this query went from rank 6 to rank 2, with bm25 contributing where
+    // it previously found nothing. Asserting rank 1 here would be a stricter claim than the fix
+    // makes: three other documents legitimately discuss concurrency.
+    //
+    // A first version of this test used a hand-written decoy containing "what happens when" — most
+    // of the query — and then failed because the decoy won. A synthetic competitor stuffed with the
+    // query's own words tests the fixture, not the retriever.
+    const chunks = [...projects, ...work].flatMap((d) =>
+      chunkDocument({ docId: d.id, docTitle: d.title, path: d.path, body: d.raw }),
+    );
+    const retriever = new Retriever(chunks, new LocalTrigramBackend(chunks));
+    const results = await retriever.retrieve("what happens when two compactions run at once", {
+      limit: 5,
+    });
+
+    const rank = results.findIndex((r) => r.chunk.docId === "work/context-compaction");
+    expect(rank).toBeGreaterThanOrEqual(0);
+    expect(rank).toBeLessThan(5);
+
+    // The actual failure was that the lexical leg found NOTHING: `compactions` did not match
+    // `compaction`. So the leg matters more than the rank.
+    const hit = results[rank];
+    expect(hit?.provenance.map((p) => p.leg)).toContain("bm25");
   });
 });

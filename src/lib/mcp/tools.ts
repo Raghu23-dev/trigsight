@@ -127,10 +127,21 @@ export class Tools {
     // The floor requires genuine lexical overlap: at least one meaningful query
     // term must actually appear in the passage. Semantic similarity alone is not
     // sufficient evidence for a factual claim about someone's experience.
+    // BOTH SIDES STEMMED, or the comparison is between different alphabets.
+    //
+    // `tokenise` stems, so a claim about "reservations" yields the term `reservation`. Testing that
+    // against raw chunk text works only by accident — a stem is usually a prefix of the word it
+    // came from, so `includes` finds it — and breaks the moment a suffix rule is not a plain
+    // truncation: `policies` stems to `policy`, which appears nowhere in a document that says
+    // "policies". The floor would then silently reject real evidence.
+    //
+    // Comparing token sets rather than substrings also removes a separate accident this had all
+    // along: `includes` matched a term inside an unrelated word.
     const terms = tokenise(claim);
     const grounded = hits.filter((h) => {
       if (terms.length === 0) return false;
-      const overlap = terms.filter((t) => h.chunk.normalised.includes(t)).length;
+      const chunkTerms = new Set(tokenise(h.chunk.normalised));
+      const overlap = terms.filter((t) => chunkTerms.has(t)).length;
       return overlap / terms.length >= MIN_TERM_OVERLAP;
     });
 
