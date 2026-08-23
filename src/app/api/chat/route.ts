@@ -187,6 +187,28 @@ export async function POST(request: Request): Promise<Response> {
   });
 
   if (!upstream.ok || upstream.body === null) {
+    // A rate limit is not an outage, and telling a visitor "model gateway unavailable" for one
+    // reads as broken software. The free tier allows 30 requests a minute; a burst of curiosity
+    // from one reader, or a crawler, reaches that. Found while probing this endpoint quickly
+    // enough to trip it, and the reply was an internal phrase with a 502 attached.
+    //
+    // Retrieval already ran and succeeded at this point, so the honest answer is "ask again in a
+    // moment", not a failure. 503 with Retry-After, because the condition is temporary and the
+    // request was not wrong.
+    if (upstream.status === 429) {
+      const retryAfter = upstream.headers.get("retry-after") ?? "30";
+      return json(
+        {
+          error:
+            "The chat is answering more questions than its free allowance permits right now. " +
+            "Try again in a moment — everything else on the site is unaffected.",
+          status: 429,
+          retryAfter,
+        },
+        503,
+        { "retry-after": retryAfter },
+      );
+    }
     return json({ error: "model gateway unavailable", status: upstream.status }, 502);
   }
 
@@ -265,9 +287,13 @@ function stripReasoning(body: ReadableStream<Uint8Array> | null): ReadableStream
   );
 }
 
-function json(payload: unknown, status = 200): Response {
+function json(
+  payload: unknown,
+  status = 200,
+  extraHeaders: Record<string, string> = {},
+): Response {
   return new Response(JSON.stringify(payload), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8" },
+    headers: { "content-type": "application/json; charset=utf-8", ...extraHeaders },
   });
 }
