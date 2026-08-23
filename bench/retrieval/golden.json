@@ -1,5 +1,5 @@
 {
-  "note": "Hand-written questions with the document that must be retrieved to answer them. Written by reading the content, not by running the retriever \u2014 otherwise the set measures the retriever against itself. Product-name queries were added 2026-08-23: the set had 30 questions and NONE named a product, so recall of 0.900 was measured while \"what is fusegrid\" returned nothing. Every question was phrased the way the content is written, which tests whether prose retrieves its own prose. A visitor types the product name first. The site has no `projects/trigsight` page \u2014 it IS trigsight \u2014 so questions about it by name are deliberately absent from this set rather than recorded as permanent misses. Tracked as a content gap, not a retrieval one.",
+  "note": "Hand-written questions with the document that must be retrieved to answer them. Written by reading the content, not by running the retriever \u2014 otherwise the set measures the retriever against itself. Product-name queries were added 2026-08-23: the set had 30 questions and NONE named a product, so recall of 0.900 was measured while \"what is fusegrid\" returned nothing. Every question was phrased the way the content is written, which tests whether prose retrieves its own prose. A visitor types the product name first. That content gap is closed: `projects/trigsight` now exists, so questions about the site itself are back in this set. They were removed rather than left as permanent misses while the document did not exist.",
   "created": "2026-08-21",
   "queries": [
     {
@@ -229,6 +229,30 @@
       "q": "what did mcpgantlet find",
       "docs": [
         "projects/mcpgantlet"
+      ]
+    },
+    {
+      "q": "what is trigsight",
+      "docs": [
+        "projects/trigsight"
+      ]
+    },
+    {
+      "q": "trigsight",
+      "docs": [
+        "projects/trigsight"
+      ]
+    },
+    {
+      "q": "how are citations verified",
+      "docs": [
+        "projects/trigsight"
+      ]
+    },
+    {
+      "q": "did real embeddings help",
+      "docs": [
+        "projects/trigsight"
       ]
     }
   ]

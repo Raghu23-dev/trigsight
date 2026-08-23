@@ -135,3 +135,68 @@ describe("read_work", () => {
     expect(r.available?.length).toBeGreaterThan(0);
   });
 });
+
+describe("prevents: a technology name that is also an English word", () => {
+  /**
+   * WHY: "Go" survived word-boundary matching in the sentence "asks the reader to go and check" —
+   * ordinary prose about following a link, in a document whose stack is TypeScript. checkStack
+   * would have reported Go as "discussed in prose — the reasoning is documented", which is the
+   * false positive this module's own comment calls its worst possible output.
+   *
+   * The boundary matcher was already correct; the problem is that a boundary cannot tell a
+   * language from a verb. Ambiguous names are therefore corroborated against the declared stacks.
+   *
+   * THE OPPOSITE FAILURE MATTERS AS MUCH. Suppressing an ambiguous name unconditionally would
+   * hide a genuine one, so the last two tests here check that corroboration still lets a real
+   * mention through.
+   */
+  it("does not report Go from the English word in prose", () => {
+    const r = tools.checkStack("Go") as {
+      listedInStack: unknown[];
+      discussedInProse: unknown[];
+    };
+    expect(r.listedInStack).toHaveLength(0);
+    expect(r.discussedInProse).toHaveLength(0);
+  });
+
+  it("says plainly that it was not found, rather than hedging", () => {
+    const r = tools.checkStack("Go") as { assessment: string };
+    expect(r.assessment).toContain("Not found");
+  });
+
+  it("still reports an unambiguous technology that IS discussed", () => {
+    // TypeScript is in a stack and written about. Nothing about the ambiguity guard may touch it.
+    const r = tools.checkStack("TypeScript") as {
+      listedInStack: unknown[];
+      discussedInProse: unknown[];
+    };
+    expect(r.listedInStack.length).toBeGreaterThan(0);
+  });
+
+  it("would report an ambiguous name if a project actually declared it", () => {
+    // Corroboration, not suppression: build a corpus that really does use Go and confirm the
+    // guard steps aside. Otherwise this fix trades a false positive for a false negative.
+    const withGo = new Tools(
+      [
+        {
+          id: "projects/example",
+          title: "Example",
+          path: "/projects/example",
+          summary: "s",
+          category: "c",
+          period: "2026",
+          stack: ["Go", "Postgres"],
+          metrics: [],
+          body: "## Why\n\nThe scheduler is written in Go because the concurrency primitives map onto the problem directly and the deployment is a single static binary.\n",
+        },
+      ],
+      "https://example.test",
+    );
+    const r = withGo.checkStack("Go") as {
+      listedInStack: unknown[];
+      discussedInProse: unknown[];
+    };
+    expect(r.listedInStack.length).toBeGreaterThan(0);
+    expect(r.discussedInProse.length).toBeGreaterThan(0);
+  });
+});

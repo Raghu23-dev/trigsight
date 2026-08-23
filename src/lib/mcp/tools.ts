@@ -46,6 +46,35 @@ export interface Evidence {
  */
 const MIN_TERM_OVERLAP = 0.34;
 
+/**
+ * Technology names that are also ordinary English words.
+ *
+ * For these, a word-boundary match in prose proves nothing: "go and check", "a rust-free
+ * measurement", "the r value", "swift feedback". The tool corroborates them against the declared
+ * stacks before reporting them as discussed.
+ *
+ * Deliberately a small explicit list rather than a heuristic. A heuristic that guesses which names
+ * are ambiguous would be wrong in both directions, and this tool's whole value is that it does not
+ * confirm experience that does not exist.
+ */
+const AMBIGUOUS_TECH_WORDS = new Set([
+  "go",
+  "rust",
+  "r",
+  "c",
+  "d",
+  "swift",
+  "dart",
+  "julia",
+  "elm",
+  "nim",
+  "crystal",
+  "processing",
+  "pascal",
+  "ada",
+  "basic",
+]);
+
 export class Tools {
   private readonly chunks: Chunk[];
   private readonly retriever: Retriever;
@@ -156,15 +185,32 @@ export class Tools {
       .filter((d) => d.stack.some((s) => boundary.test(normalise(s))))
       .map((d) => ({ docId: d.id, title: d.title, url: `${this.origin}${d.path}` }));
 
-    const inProse = this.chunks
-      .filter((c) => boundary.test(c.normalised))
-      .slice(0, 4)
-      .map((c) => ({
-        docId: c.docId,
-        headings: c.headings,
-        passage: c.text,
-        url: `${this.origin}${c.path}`,
-      }));
+    // Word boundaries are not enough for a name that is also an ordinary English word.
+    //
+    // "Go" survives boundary matching in "asks the reader to go and check" — a sentence about
+    // reading a link, in a document whose stack is TypeScript. The tool would report Go as
+    // "discussed in prose — the reasoning is documented", which is the false positive this
+    // function's own comment calls its worst possible output, arrived at from the other direction.
+    //
+    // So an ambiguous name must be corroborated: it counts as discussed only if some document
+    // actually lists it in a stack. A name nobody builds with, appearing as a common word, is
+    // English rather than a technology. Unambiguous names ("TypeScript", "Upstash") are unaffected,
+    // because nothing gates them — the set below is only consulted for words that are both.
+    const ambiguous = AMBIGUOUS_TECH_WORDS.has(needle);
+    const corroborated = inStack.length > 0;
+
+    const inProse =
+      ambiguous && !corroborated
+        ? []
+        : this.chunks
+            .filter((c) => boundary.test(c.normalised))
+            .slice(0, 4)
+            .map((c) => ({
+              docId: c.docId,
+              headings: c.headings,
+              passage: c.text,
+              url: `${this.origin}${c.path}`,
+            }));
 
     return {
       technology,

@@ -1,0 +1,117 @@
+---
+title: A Portfolio That Refuses to State an Unverified Number
+summary: This site is the fourth product. Every claim on it is bound at build time to a passage that exists, and the chat answers from retrieval over the same documents rather than from a model's memory.
+category: Retrieval / Verification
+period: "2026"
+order: 4
+live: https://trigsight.vercel.app
+repo: https://github.com/Raghu23-dev/trigsight
+headline: Every citation bound to a real passage, or the build fails
+limitation: Real embeddings bought no recall over a deterministic trigram stand-in — 0.967 both ways. The whole vector leg is worth one query at this corpus size, and its measurable gain is ranking quality rather than what is found at all.
+reproduce: npm run verify:citations && npx tsx bench/retrieval/eval.ts --k 5
+stack:
+  - TypeScript
+  - Next.js
+  - Velite
+  - BM25
+  - Upstash Vector
+  - Groq
+metrics:
+  - label: Citations bound to a real passage
+    value: 68 of 68
+    verified: true
+  - label: Unbound citations tolerated
+    value: "0"
+    verified: true
+  - label: recall@5, hybrid retrieval
+    value: "1.000"
+    verified: true
+  - label: Lighthouse, mobile
+    value: 100/100/100/100
+    verified: true
+  - label: Recall gained by real embeddings
+    value: none
+    verified: true
+---
+
+## The problem
+
+A portfolio makes claims about work a reader cannot inspect. The normal solution is a link, which
+asks the reader to go and check, which nobody does. The dishonest solution is a number with no
+provenance, and it is dishonest whether or not the number happens to be true — a figure nobody can
+trace is indistinguishable from one that was invented.
+
+So the interesting question is not "how do I present the work" but **what would have to be true for
+a stranger to trust a number on this page without leaving it.**
+
+## What I built
+
+Two mechanisms, both of which fail the build rather than degrade quietly.
+
+**Every citation is bound to a passage at build time.** A claim on this site carries a token naming
+the document and quoting the sentence it rests on, verbatim. `npm run verify:citations` resolves each
+one against the actual content and writes an allowlist. A citation whose quoted text does not appear,
+character for character, in the document it names is *unbound*, and an unbound citation fails the
+build.
+
+The count is deliberately not stated in this paragraph. Writing "there are N citations" on a page
+that itself contains citations makes the sentence falsify itself the next time anyone adds one — this
+page went from 56 to 68 by existing. The invariant is what matters: **zero unbound, or no build.**
+
+The verbatim requirement is the load-bearing part. A paraphrase would let a claim drift away from its
+source one edit at a time, which is exactly how a page ends up asserting something no document
+supports.
+
+**The chat answers from retrieval, not from memory.** Ask it something and it runs hybrid retrieval —
+BM25 over chunked prose, fused by reciprocal rank with a vector leg — then a model writes an answer
+constrained to those passages, emitting the same citation tokens the rest of the site uses. Anything
+it cannot ground, it declines to answer.
+
+That refusal is a feature and it is tested. A question about something not in the corpus gets "that
+is not covered here", not a plausible invention.
+
+## What it measured
+
+`recall@5 = 1.000` across 38 hand-written queries, each paired with the document that must be
+retrieved to answer it. The queries were written by reading the content, not by running the
+retriever — otherwise the set measures the retriever against itself.
+
+## What went wrong
+
+**The evaluation set had a blind spot the whole time, and it was the obvious one.** Thirty queries,
+and not one of them named a product. Every question was phrased the way the content is written —
+"how do you stop a reconnecting client from duplicating events" — so the set was measuring whether
+prose retrieves its own prose. Recall read 0.900 and looked healthy.
+
+Then I asked the live chat "what is fusegrid", which is what a visitor types first, and it said it
+had no information about it. Neither did asking about this site's conformance checker. **No project
+on this site names itself in its own body text** — a document titled "Cost Ceilings That Hold Under
+Concurrency" talks about "the ledger" and "the reservation", never "fusegrid" — and retrieval indexed
+only the prose. The product name sat in the document id, the title and the URL, and in nothing that
+was searched.
+
+The fix took ten minutes. Finding it took a fortnight, because the gate designed to catch exactly
+this was asking a question the failure could pass: it verified that the corpus retrieves what the
+corpus says, and the thing a stranger asks about is not in the corpus at all.
+
+Adding eight product-name queries dropped recall to 0.775 — below the 0.85 threshold — which is the
+gate finally doing its job. After the fix, 1.000.
+
+**And a benchmark that argued against its own design.** Real embeddings, `text-embedding-3-small` at
+1536 dims served by Upstash, were expected to beat the deterministic trigram stand-in written for
+offline testing. They did not: 0.967 recall both ways. The gain was in MRR — 0.831 to 0.889, better
+ranking of what was already found — and at 61 chunks a recall difference of 0.034 is a single query.
+
+The honest reading is that this corpus is too small for a vector leg to earn its place on recall
+alone. It stays because ranking quality is worth having and the infrastructure is already paid for,
+not because the number justified it.
+
+## What this is not
+
+It is not a template, and it is not reusable as one. The citation gate assumes prose written to be
+quotable and content authored in the same repository as the code that verifies it. Applied to a site
+whose claims come from elsewhere, it would verify nothing and say so cheerfully.
+
+It also does not check whether a claim is *meaningful* — only whether the text it quotes exists.
+"Substantially faster" passes every gate here and means nothing, which is a matter for the writer
+rather than the build.
