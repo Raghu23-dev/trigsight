@@ -82,7 +82,10 @@ export class UpstashBackend implements VectorBackend {
     for (let i = 0; i < chunks.length; i += batchSize) {
       const batch = chunks.slice(i, i + batchSize).map((c) => ({
         id: c.id,
-        data: c.text,
+        // `searchText`, not `text`: it carries the product name and title, which no document
+        // repeats in its own prose. Embedding `text` alone made the real-embeddings leg blind to
+        // "what is fusegrid" in exactly the same way the lexical leg was.
+        data: c.searchText,
         // Metadata is stored but never used for ranking. It exists so a result can be
         // traced back to its document without a second lookup.
         metadata: {

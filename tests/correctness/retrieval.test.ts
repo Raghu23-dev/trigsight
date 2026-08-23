@@ -229,3 +229,120 @@ describe("paragraph-aware chunking", () => {
   });
 });
 
+
+describe("a document is findable by its own name", () => {
+  // WHY THIS EXISTS: no project on this site names itself in its body prose. `projects/fusegrid`
+  // is titled "A Spend Ceiling That Holds Under Concurrency" and the text says "the ledger", "the
+  // reservation" — never "fusegrid". Retrieval indexed `chunk.text` only, so the single most
+  // likely visitor question, "what is fusegrid", matched nothing and the chat replied "not in the
+  // provided material" about the site's own flagship.
+  //
+  // The retrieval eval caught none of it: 30 golden queries and NOT ONE named a product, because
+  // every question was phrased the way the content is written. Recall read 0.900 while the
+  // homepage's primary call to action was broken.
+  //
+  // These are unit tests rather than golden queries because `npm test` runs in CI and the eval
+  // does not.
+  const named = chunkDocument({
+    docId: "projects/fusegrid",
+    docTitle: "A Spend Ceiling That Holds Under Concurrency",
+    path: "/projects/fusegrid",
+    body: `---
+title: A Spend Ceiling That Holds Under Concurrency
+---
+
+## The problem
+
+Concurrent callers each read the remaining budget, each decide there is room, and
+together they overrun it. The ledger has to reserve before the call, not account
+after it.
+`,
+  });
+
+  it("indexes the slug, which appears nowhere in the prose", () => {
+    const chunk = named[0];
+    expect(chunk).toBeDefined();
+    if (chunk === undefined) return;
+    expect(chunk.text.toLowerCase()).not.toContain("fusegrid");
+    expect(chunk.searchText.toLowerCase()).toContain("fusegrid");
+  });
+
+  it("keeps searchText out of text, so citations still quote real prose", () => {
+    // A citation must quote `text` character-for-character. If the name were prepended to `text`
+    // instead, every passage would carry a preamble that appears nowhere in the document.
+    for (const chunk of named) {
+      expect(chunk.text).not.toContain("projects/fusegrid");
+      expect(chunk.text.startsWith("fusegrid")).toBe(false);
+    }
+  });
+
+  it("ranks the named document FIRST against competitors", async () => {
+    // A single-document index returns that document for any query, so it cannot tell a working
+    // retriever from a broken one. This test previously did exactly that and passed with the fix
+    // reverted — a test that cannot fail is worse than no test, because it is trusted.
+    //
+    // So: three documents, none of which names itself, and a query naming one of them. The
+    // assertion is on RANK, not mere presence.
+    const others = [
+      ...chunkDocument({
+        docId: "projects/onewayglass",
+        docTitle: "Count-Stable Permission-Aware Retrieval",
+        path: "/projects/onewayglass",
+        body: `## The problem\n\nFiltering by permission after ranking changes how many results come back, and the count itself tells the caller that something exists which they may not read.\n`,
+      }),
+      ...chunkDocument({
+        docId: "projects/mcpgantlet",
+        docTitle: "MCP Protocol Conformance Auditing",
+        path: "/projects/mcpgantlet",
+        body: `## The problem\n\nServers ship claiming to implement a revision of the protocol, and nothing checks the claim. An invalid Origin header must be rejected, and four of five public servers accepted it.\n`,
+      }),
+    ];
+    const corpus = [...named, ...others];
+    const retriever = new Retriever(corpus, new LocalTrigramBackend(corpus));
+
+    const results = await retriever.retrieve("fusegrid", { limit: 3 });
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0]?.chunk.docId).toBe("projects/fusegrid");
+
+    // Rank alone does not prove the fix, and finding that out took three attempts.
+    //
+    // Reverted, BM25 returns an EMPTY list for "fusegrid" — the name is in no prose — and the
+    // trigram stand-in then decides the order on its own. It happens to put fusegrid first,
+    // because "grid" is a character-gram of its own name and of nothing else here. So the rank
+    // assertion above passed against the broken build, twice, with two different queries.
+    //
+    // What actually separates fixed from broken is that the LEXICAL leg contributes at all. A
+    // hybrid whose lexical half is silent on a proper noun is one backend outage away from
+    // answering nothing, which is what production would have done had Upstash been configured.
+    const legs = results.flatMap((r) => r.provenance.map((p) => p.leg));
+    expect(legs).toContain("bm25");
+  });
+
+  it("the lexical leg alone finds it, not just the vector leg", () => {
+    // Both legs were blind to the same thing. Fixing only one would leave the production path
+    // dependent on whichever backend happened to be configured.
+    const index = buildBm25(named.map((c) => ({ id: c.id, text: c.searchText })));
+    expect(searchBm25(index, "fusegrid", 5).length).toBeGreaterThan(0);
+  });
+
+  it("a folded-in tail chunk keeps its name, rather than losing it on rebuild", () => {
+    // Undersized tails are merged into the previous chunk via `rebuild`. Carrying the old
+    // searchText forward would index pre-merge content against post-merge text.
+    const withTail = chunkDocument({
+      docId: "projects/onewayglass",
+      docTitle: "Count-Stable Permission-Aware Retrieval",
+      path: "/projects/onewayglass",
+      body: `## One
+
+${"Permission filtering after ranking changes the result count, which leaks the existence of documents the caller may not see. ".repeat(4)}
+
+## Two
+
+Short.
+`,
+    });
+    for (const chunk of withTail) {
+      expect(chunk.searchText.toLowerCase()).toContain("onewayglass");
+    }
+  });
+});

@@ -10,6 +10,7 @@
 import type { Chunk } from "./chunk";
 import { buildBm25, searchBm25, type Bm25Index } from "./bm25";
 import { fuse, type FusedResult } from "./fuse";
+import { normalise } from "../normalise";
 
 export interface VectorBackend {
   readonly name: string;
@@ -43,7 +44,9 @@ export class Retriever {
     private readonly vector: VectorBackend | null,
   ) {
     this.byId = new Map(chunks.map((c) => [c.id, c]));
-    this.lexical = buildBm25(chunks.map((c) => ({ id: c.id, text: c.text })));
+    // `searchText`, not `text`: the product name and title are not in the prose, so indexing
+    // `text` alone made "what is fusegrid" unanswerable about this site's own flagship.
+    this.lexical = buildBm25(chunks.map((c) => ({ id: c.id, text: c.searchText })));
   }
 
   async retrieve(query: string, options: RetrieverOptions = {}): Promise<Retrieved[]> {
@@ -102,7 +105,10 @@ export class LocalTrigramBackend implements VectorBackend {
     chunks: readonly Chunk[],
     private readonly dims = 512,
   ) {
-    this.vectors = new Map(chunks.map((c) => [c.id, this.embed(c.normalised)]));
+    // Normalised `searchText`, so this leg sees the product name too. Embedding `normalised`
+    // alone left both legs blind to the same thing, which is how a name absent from the prose
+    // was absent from every result.
+    this.vectors = new Map(chunks.map((c) => [c.id, this.embed(normalise(c.searchText))]));
   }
 
   private embed(text: string): Float32Array {
