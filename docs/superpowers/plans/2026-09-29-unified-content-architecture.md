@@ -596,8 +596,8 @@ links:
 
 - [ ] **Step 3: Verify the build**
 
-Run: `npm run content`
-Expected: build succeeds. `verify:citations` document count is unchanged (these have no body, so `documentFiles()`/`citationFiles()` in `bench/citations/discover.ts` — confirm by running `npm run verify:citations` and checking the count did NOT increase past 20).
+Run: `npm run content && npm run verify:citations`
+Expected: build succeeds. `documents indexed: 22` — `bench/citations/discover.ts`'s `documentFiles()` walks and counts every `.mdx` file regardless of body content, so `chrome/nav.mdx` and `chrome/footer.mdx` each add one to the count even though neither has a citations file pointing at it. This is expected, not a bug: 0 new citations, 0 new unbound, just 2 more indexed (and uncited) documents. Still `OK — every citation is bound to a real passage.`
 
 - [ ] **Step 4: Commit**
 
