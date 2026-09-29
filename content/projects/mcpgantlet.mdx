@@ -7,7 +7,7 @@ order: 3
 live: https://mcpgantlet.vercel.app
 repo: https://github.com/Raghu23-dev/mcpgantlet
 headline: 4 of 5 public MCP servers accept requests from any website
-limitation: No audited server implements the revision being checked. All five target earlier revisions, so 26 of 31 findings are version gaps rather than defects — and a naive audit would have reported all 31 as violations.
+limitation: No audited server implements the revision being checked. All five target earlier revisions, so 18 of 23 findings are version gaps rather than defects — and a naive audit would have reported all 23 as violations.
 reproduce: python bench/conformance/third_party.py
 stack:
   - Python
@@ -69,11 +69,16 @@ sent an identical request twice — once with no `Origin`, once with `Origin: ht
 Cloudflare is the control: same probe, same request shape, correct rejection — so the four
 acceptances are a property of those servers rather than of the tool.
 
-`Origin` validation is the specification's defence against DNS rebinding, and the only rule whose
-absence is directly exploitable from a browser. It has been a MUST since the Streamable HTTP
-transport was introduced, so this is not a version gap.
+`Origin` validation is the specification's defence against DNS rebinding, an attack that bites
+hardest on servers reachable on localhost or a private network, where the server trusts its
+network position. It has been a MUST since the Streamable HTTP transport was introduced, so this
+is not a version gap.
 
-Every probe is read-only. No exploit was attempted — the finding rests entirely on a status code.
+Three of the four are public and unauthenticated, where a browser adds little an attacker
+couldn't already do by calling the server directly — so this is not a claim that those specific
+deployments are exploitable. It is a claim that a client cannot tell a conformant server from a
+non-conformant one without checking, which is what the audit measures. Every probe is read-only.
+No exploit was attempted — the finding rests entirely on a status code.
 
 ## The more useful finding came from asking before measuring
 
@@ -82,13 +87,13 @@ current one.** All target 2025-03-26 or 2025-06-18.
 
 That revision removed sessions and the GET stream and added mandatory request-metadata headers, so
 an older server fails most of its MUSTs *by construction* while being perfectly conformant to what
-it targets. A naive run would have reported roughly 40 violations across five servers — every one
+it targets. A naive run would have reported 23 violations across five servers — every one
 technically accurate and completely misleading, and exactly the noise this tool exists not to add
 to.
 
 Findings are now classified: **version gap** (reported, never counted) versus **real defect** (the
 rule is unchanged across revisions, so the server's own target requires it too). Under that split:
-26 version gaps, 5 real defects.
+18 version gaps, 5 real defects.
 
 ## What went wrong
 
