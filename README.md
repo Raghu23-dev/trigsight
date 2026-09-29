@@ -34,7 +34,7 @@ ship.
 | Accessibility · Best Practices · SEO | 100 · 100 · 100 | **100 · 100 · 100** |
 | Largest Contentful Paint | 3.9 s | **1.9 s** |
 | Total Blocking Time | 1,540 ms | **~20 ms** |
-| Initial JavaScript (brotli) | 380.9 KB | **133.9 KB** |
+| Initial JavaScript (brotli) | 380.9 KB | **134.2 KB** |
 | WebGL scene | none | **shipping** |
 | Citations verified against source | — | **34 / 34** |
 
