@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { ViewTransition } from "react";
 import Link from "next/link";
+import { PAGE_TRANSITION } from "../../lib/page-transition";
 
 export const metadata: Metadata = {
   title: "About",
@@ -9,9 +11,11 @@ export const metadata: Metadata = {
 
 export default function AboutPage() {
   return (
+    <ViewTransition {...PAGE_TRANSITION}>
     <main className="mx-auto max-w-4xl px-6 py-20">
       <Link
         href="/"
+        transitionTypes={["nav-back"]}
         className="font-mono text-2xs uppercase tracking-[0.2em] text-fg-subtle hover:text-fg"
       >
         ← Home
@@ -81,5 +85,6 @@ export default function AboutPage() {
         </p>
       </div>
     </main>
+    </ViewTransition>
   );
 }

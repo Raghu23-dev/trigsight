@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { ViewTransition } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { MDX } from "../../../components/mdx";
 import { projects, projectBySlug } from "../../../lib/content";
+import { PAGE_TRANSITION } from "../../../lib/page-transition";
 
 export function generateStaticParams() {
   return projects.map((p) => ({ slug: p.id.replace(/^projects\//, "") }));
@@ -34,9 +36,11 @@ export default async function ProjectPage({
   if (!doc) notFound();
 
   return (
+    <ViewTransition {...PAGE_TRANSITION}>
     <article className="mx-auto max-w-3xl px-6 py-20">
       <Link
         href="/projects"
+        transitionTypes={["nav-back"]}
         className="font-mono text-2xs uppercase tracking-[0.2em] text-fg-subtle hover:text-fg"
       >
         ← Projects
@@ -131,5 +135,6 @@ export default async function ProjectPage({
         </footer>
       )}
     </article>
+    </ViewTransition>
   );
 }

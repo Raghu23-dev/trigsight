@@ -1,8 +1,10 @@
+import { ViewTransition } from "react";
 import Link from "next/link";
 import { Scene } from "../components/scene";
 import { Reveal } from "../components/reveal";
 import { projects, work } from "../lib/content";
 import { skillGroups } from "../lib/skills";
+import { PAGE_TRANSITION } from "../lib/page-transition";
 import allowlist from "../generated/citation-allowlist.json";
 import payload from "../generated/payload.json";
 
@@ -18,6 +20,7 @@ const PAYLOAD_BUDGET_KB = payload.budgetKb;
 
 export default function Home() {
   return (
+    <ViewTransition {...PAGE_TRANSITION}>
     <main className="mx-auto max-w-4xl px-6 py-24">
       {/* The scene sits behind the hero, never over it, and is aria-hidden.
           Height is fixed so it cannot become the largest contentful paint. */}
@@ -66,6 +69,7 @@ export default function Home() {
       <nav className="mt-12 flex flex-wrap gap-2">
         <Link
           href="/ask"
+          transitionTypes={["nav-forward"]}
           className="rounded border border-border bg-surface px-3 py-2 font-mono text-2xs uppercase tracking-wider text-fg-muted transition-colors hover:border-accent-dim hover:text-fg"
         >
           Ask about the work →
@@ -82,6 +86,7 @@ export default function Home() {
           </h2>
           <Link
             href="/projects"
+            transitionTypes={["nav-forward"]}
             className="font-mono text-2xs text-accent hover:underline"
           >
             All three →
@@ -93,6 +98,7 @@ export default function Home() {
               <Reveal delayMs={i * 60}>
                 <Link
                   href={p.path}
+                  transitionTypes={["nav-forward"]}
                   className="card-hover block border border-border bg-surface p-5 hover:border-accent-dim hover:bg-surface-raised"
                 >
                   <div className="flex flex-wrap items-baseline gap-x-3">
@@ -124,6 +130,7 @@ export default function Home() {
               <Reveal delayMs={i * 50}>
                 <Link
                   href={w.path}
+                  transitionTypes={["nav-forward"]}
                   className="card-hover group flex flex-col gap-2 py-7 hover:bg-surface/40 sm:flex-row sm:items-baseline sm:gap-8"
                 >
                   <span className="w-40 shrink-0 font-mono text-2xs uppercase tracking-wider text-accent">
@@ -171,6 +178,7 @@ export default function Home() {
         </div>
       </section>
     </main>
+    </ViewTransition>
   );
 }
 

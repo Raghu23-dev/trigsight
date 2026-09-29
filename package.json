@@ -23,8 +23,8 @@
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "^26.2.0",
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "@types/three": "^0.185.4",
     "postcss": "^8.5.26",
     "tailwindcss": "4.3.3",
@@ -37,10 +37,10 @@
     "eslint-config-next": "16.3.1"
   },
   "dependencies": {
-    "@react-three/fiber": "9.7.0",
+    "@react-three/fiber": "9.8.1",
     "next": "16.3.1",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "three": "0.185.1"
   },
   "overrides": {
