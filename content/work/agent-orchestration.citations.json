@@ -1,6 +1,10 @@
 [
   {
     "docId": "work/agent-orchestration",
+    "passage": "Human-in-the-loop approval gates bridge the gap: they enable autonomous execution of safe operations while blocking risky ones"
+  },
+  {
+    "docId": "work/agent-orchestration",
     "passage": "Seven gate types over a risk lattice, with four possible human responses"
   },
   {

@@ -1,6 +1,6 @@
 ---
 title: AI Process-Orchestration Engine
-summary: Ran multi-step LLM workflows through human approval gates with governed model routing, multi-pod streaming and per-run cost accounting.
+summary: Ran multi-step LLM workflows through human-in-the-loop approval gates with governed model routing, multi-pod streaming and per-run cost accounting.
 category: Agent Infrastructure
 period: "2026"
 order: 4
@@ -33,7 +33,8 @@ the work by hand.
 
 The engineering problem is not "should a human approve this" but *which* actions
 need approval, what the human is shown in order to decide, and what happens to the
-run while it waits.
+run while it waits. Human-in-the-loop approval gates bridge the gap: they enable
+autonomous execution of safe operations while blocking risky ones until reviewed.
 
 ## What I built
 

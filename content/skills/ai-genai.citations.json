@@ -1,6 +1,6 @@
 [
   {
     "docId": "skills/ai-genai",
-    "passage": "Multi-agent orchestration on human-in-the-loop approval gates, hybrid retrieval pipelines evaluated with Cohere rerank"
+    "passage": "Multi-agent orchestration with CrewAI, hybrid retrieval pipelines evaluated with Cohere rerank"
   }
 ]
