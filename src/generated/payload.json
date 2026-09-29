@@ -1,7 +1,7 @@
 {
-  "initialJsKb": 133.9,
+  "initialJsKb": 134.2,
   "budgetKb": 150,
-  "measuredAt": "2026-08-21",
+  "measuredAt": "2026-09-29",
   "method": "deployed-transfer",
   "lighthouse": {
     "performance": 99,
