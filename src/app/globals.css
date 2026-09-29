@@ -110,6 +110,57 @@ body {
   font-family: var(--font-mono);
 }
 
+/* Scroll-reveal. Starting state is hidden-but-laid-out (not display:none), so
+   content is present for a crawler or a JS-disabled visitor and only the
+   transition is unavailable to them. */
+.reveal {
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity 0.5s ease-out,
+    transform 0.5s ease-out;
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Hover lift for cards — a few px of translate plus the existing border-color
+   transition, never a shadow: shadows read as light-mode UI on this dark,
+   flat-surface system. */
+.card-hover {
+  transition:
+    transform 0.2s ease-out,
+    border-color 0.2s ease-out,
+    background-color 0.2s ease-out;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+}
+
+/* Skill chips. Border-only at rest so a page of ~70 of these reads as data,
+   not as buttons; accent fill only on hover/focus, when it means something. */
+.skill-chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.3rem 0.65rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-fg-muted);
+  background: var(--color-surface);
+  transition:
+    border-color 0.15s ease-out,
+    color 0.15s ease-out,
+    transform 0.15s ease-out;
+}
+.skill-chip:hover {
+  border-color: var(--color-accent-dim);
+  color: var(--color-fg);
+  transform: translateY(-1px);
+}
+
 /* Screen-reader-only utility. Used for the live-region announcer, which must be
    perceivable to assistive technology and invisible to everyone else. */
 .sr-only {

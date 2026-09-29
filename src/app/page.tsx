@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Scene } from "../components/scene";
+import { Reveal } from "../components/reveal";
 import { projects, work } from "../lib/content";
+import { skillGroups } from "../lib/skills";
 import allowlist from "../generated/citation-allowlist.json";
 import payload from "../generated/payload.json";
 
@@ -86,25 +88,27 @@ export default function Home() {
           </Link>
         </div>
         <ul className="mt-6 space-y-px">
-          {projects.map((p) => (
+          {projects.map((p, i) => (
             <li key={p.id}>
-              <Link
-                href={p.path}
-                className="block border border-border bg-surface p-5 transition-colors hover:border-accent-dim hover:bg-surface-raised"
-              >
-                <div className="flex flex-wrap items-baseline gap-x-3">
-                  <span className="font-mono text-2xs uppercase tracking-[0.2em] text-fg-subtle">
-                    {p.category}
-                  </span>
-                </div>
-                <h3 className="mt-2 font-display text-lg leading-snug tracking-tight text-fg">
-                  {p.title}
-                </h3>
-                <p className="mt-2 font-mono text-sm leading-relaxed text-pass">
-                  {p.headline}
-                </p>
-                <p className="mt-2 text-sm leading-relaxed text-fg-muted">{p.summary}</p>
-              </Link>
+              <Reveal delayMs={i * 60}>
+                <Link
+                  href={p.path}
+                  className="card-hover block border border-border bg-surface p-5 hover:border-accent-dim hover:bg-surface-raised"
+                >
+                  <div className="flex flex-wrap items-baseline gap-x-3">
+                    <span className="font-mono text-2xs uppercase tracking-[0.2em] text-fg-subtle">
+                      {p.category}
+                    </span>
+                  </div>
+                  <h3 className="mt-2 font-display text-lg leading-snug tracking-tight text-fg">
+                    {p.title}
+                  </h3>
+                  <p className="mt-2 font-mono text-sm leading-relaxed text-pass">
+                    {p.headline}
+                  </p>
+                  <p className="mt-2 text-sm leading-relaxed text-fg-muted">{p.summary}</p>
+                </Link>
+              </Reveal>
             </li>
           ))}
         </ul>
@@ -115,30 +119,56 @@ export default function Home() {
           Selected work
         </h2>
         <ul className="mt-8 divide-y divide-border border-t border-border">
-          {work.map((w) => (
+          {work.map((w, i) => (
             <li key={w.id}>
-              <Link
-                href={w.path}
-                className="group flex flex-col gap-2 py-7 transition-colors hover:bg-surface/40 sm:flex-row sm:items-baseline sm:gap-8"
-              >
-                <span className="w-40 shrink-0 font-mono text-2xs uppercase tracking-wider text-accent">
-                  {w.category}
-                </span>
-                <span className="flex-1">
-                  <span className="block font-display text-lg tracking-tight text-fg group-hover:text-accent">
-                    {w.title}
+              <Reveal delayMs={i * 50}>
+                <Link
+                  href={w.path}
+                  className="card-hover group flex flex-col gap-2 py-7 hover:bg-surface/40 sm:flex-row sm:items-baseline sm:gap-8"
+                >
+                  <span className="w-40 shrink-0 font-mono text-2xs uppercase tracking-wider text-accent">
+                    {w.category}
                   </span>
-                  <span className="mt-1.5 block text-sm leading-relaxed text-fg-muted">
-                    {w.summary}
+                  <span className="flex-1">
+                    <span className="block font-display text-lg tracking-tight text-fg group-hover:text-accent">
+                      {w.title}
+                    </span>
+                    <span className="mt-1.5 block text-sm leading-relaxed text-fg-muted">
+                      {w.summary}
+                    </span>
                   </span>
-                </span>
-                <span className="shrink-0 font-mono text-2xs text-fg-subtle">
-                  {w.period}
-                </span>
-              </Link>
+                  <span className="shrink-0 font-mono text-2xs text-fg-subtle">
+                    {w.period}
+                  </span>
+                </Link>
+              </Reveal>
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="mt-20">
+        <h2 className="font-mono text-2xs uppercase tracking-[0.2em] text-fg-subtle">
+          Skills
+        </h2>
+        <div className="mt-8 space-y-6">
+          {skillGroups.map((group, i) => (
+            <Reveal key={group.category} delayMs={i * 40}>
+              <div className="flex flex-col gap-3 sm:flex-row sm:gap-6">
+                <h3 className="w-40 shrink-0 font-mono text-2xs uppercase tracking-wider text-fg-subtle">
+                  {group.category}
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {group.items.map((item) => (
+                    <span key={item} className="skill-chip">
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </Reveal>
+          ))}
+        </div>
       </section>
     </main>
   );
