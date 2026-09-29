@@ -24,10 +24,14 @@ const linkClass =
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-40 h-20 border-b border-border bg-bg/85 backdrop-blur">
+    <header
+      className="sticky top-0 z-40 h-20 border-b border-border bg-bg/85 backdrop-blur"
+      style={{ viewTransitionName: "site-header" }}
+    >
       <div className="mx-auto flex h-full max-w-4xl items-center justify-between gap-6 px-6">
         <Link
           href="/"
+          transitionTypes={["nav-back"]}
           className="flex items-center gap-2.5 font-mono text-2xs uppercase tracking-[0.14em] text-fg transition-colors hover:text-accent"
           aria-label="Raghuram P — home"
         >
@@ -46,7 +50,7 @@ export function Header() {
 
         <nav aria-label="Primary" className="flex flex-wrap items-center gap-x-5 gap-y-1">
           {NAV_LINKS.map((l) => (
-            <Link key={l.href} href={l.href} className={linkClass}>
+            <Link key={l.href} href={l.href} transitionTypes={["nav-forward"]} className={linkClass}>
               {l.label}
             </Link>
           ))}

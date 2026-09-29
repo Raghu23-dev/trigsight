@@ -161,6 +161,82 @@ body {
   transform: translateY(-1px);
 }
 
+/* Page-to-page view transitions (React's <ViewTransition>, native browser API
+   underneath — no animation library, no added JS). Deliberately restrained:
+   short duration, small offset, matching the reveal/hover motion elsewhere
+   rather than the more theatrical values in the reference implementation this
+   pattern comes from. */
+::view-transition {
+  /* Without this, the transition overlay eats clicks on the live page for its
+     duration. */
+  pointer-events: none;
+}
+
+::view-transition-group(site-header) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(site-header) {
+  display: none;
+}
+::view-transition-new(site-header) {
+  animation: none;
+}
+
+::view-transition-old(.nav-forward) {
+  --slide-offset: -16px;
+  animation:
+    120ms ease-in both view-fade reverse,
+    200ms ease-in-out both view-slide reverse;
+}
+::view-transition-new(.nav-forward) {
+  --slide-offset: 16px;
+  animation:
+    150ms ease-out 100ms both view-fade,
+    200ms ease-in-out both view-slide;
+}
+::view-transition-old(.nav-back) {
+  --slide-offset: 16px;
+  animation:
+    120ms ease-in both view-fade reverse,
+    200ms ease-in-out both view-slide reverse;
+}
+::view-transition-new(.nav-back) {
+  --slide-offset: -16px;
+  animation:
+    150ms ease-out 100ms both view-fade,
+    200ms ease-in-out both view-slide;
+}
+
+@keyframes view-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes view-slide {
+  from {
+    translate: var(--slide-offset);
+  }
+  to {
+    translate: 0;
+  }
+}
+
+/* The sitewide reduced-motion rule targets `*, *::before, *::after` — the
+   ::view-transition-* pseudo-elements live in a separate top-layer tree and
+   are not matched by that selector, so they need their own override. */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}
+
 /* Screen-reader-only utility. Used for the live-region announcer, which must be
    perceivable to assistive technology and invisible to everyone else. */
 .sr-only {

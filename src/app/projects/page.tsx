@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { ViewTransition } from "react";
 import Link from "next/link";
 import { projects } from "../../lib/content";
+import { PAGE_TRANSITION } from "../../lib/page-transition";
 
 export const metadata: Metadata = {
   title: "Projects",
@@ -21,9 +23,11 @@ export const metadata: Metadata = {
  */
 export default function ProjectsPage() {
   return (
+    <ViewTransition {...PAGE_TRANSITION}>
     <main className="mx-auto max-w-4xl px-6 py-20">
       <Link
         href="/"
+        transitionTypes={["nav-back"]}
         className="font-mono text-2xs uppercase tracking-[0.2em] text-fg-subtle hover:text-fg"
       >
         ← Home
@@ -52,7 +56,7 @@ export default function ProjectsPage() {
               </div>
 
               <h2 className="mt-3 font-display text-xl leading-snug tracking-tight text-fg">
-                <Link href={p.path} className="hover:text-accent">
+                <Link href={p.path} transitionTypes={["nav-forward"]} className="hover:text-accent">
                   {p.title}
                 </Link>
               </h2>
@@ -74,7 +78,7 @@ export default function ProjectsPage() {
               </p>
 
               <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-xs">
-                <Link href={p.path} className="text-accent hover:underline">
+                <Link href={p.path} transitionTypes={["nav-forward"]} className="text-accent hover:underline">
                   Read the writeup →
                 </Link>
                 <a
@@ -97,5 +101,6 @@ export default function ProjectsPage() {
         ))}
       </ul>
     </main>
+    </ViewTransition>
   );
 }

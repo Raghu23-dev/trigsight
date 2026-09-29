@@ -18,12 +18,14 @@ export function Footer() {
           <nav aria-label="Footer" className="flex flex-wrap gap-x-5 gap-y-2">
             <Link
               href="/projects"
+              transitionTypes={["nav-forward"]}
               className="font-mono text-2xs uppercase tracking-[0.14em] text-fg-muted hover:text-fg"
             >
               Projects
             </Link>
             <Link
               href="/about"
+              transitionTypes={["nav-forward"]}
               className="font-mono text-2xs uppercase tracking-[0.14em] text-fg-muted hover:text-fg"
             >
               About

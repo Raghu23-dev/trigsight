@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { ViewTransition } from "react";
 import Link from "next/link";
 import { Chat } from "../../components/chat";
 import allowlist from "../../generated/citation-allowlist.json";
+import { PAGE_TRANSITION } from "../../lib/page-transition";
 
 export const metadata: Metadata = {
   title: "Ask",
@@ -11,9 +13,11 @@ export const metadata: Metadata = {
 
 export default function AskPage() {
   return (
+    <ViewTransition {...PAGE_TRANSITION}>
     <main className="mx-auto max-w-2xl px-6 py-20">
       <Link
         href="/"
+        transitionTypes={["nav-back"]}
         className="font-mono text-2xs uppercase tracking-[0.2em] text-fg-subtle transition-colors hover:text-accent"
       >
         ← index
@@ -29,5 +33,6 @@ export default function AskPage() {
 
       <Chat allowlist={allowlist} />
     </main>
+    </ViewTransition>
   );
 }
