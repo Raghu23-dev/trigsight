@@ -6,6 +6,7 @@ const BASE = "https://trigsight.vercel.app";
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     { url: BASE, changeFrequency: "monthly", priority: 1 },
+    { url: `${BASE}/about`, changeFrequency: "yearly", priority: 0.6 },
     { url: `${BASE}/ask`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE}/projects`, changeFrequency: "monthly", priority: 0.9 },
     ...projects.map((p) => ({
