@@ -1,9 +1,10 @@
 import type { NextConfig } from "next";
 
 const config: NextConfig = {
-  // Fail the build on type or lint errors rather than shipping them.
+  // Fail the build on type errors rather than shipping them. Lint is gated
+  // separately in CI (`npm run lint`) — Next 16.3.7 dropped the `eslint` config
+  // key here, so this can no longer also do it inline.
   typescript: { ignoreBuildErrors: false },
-  eslint: { ignoreDuringBuilds: false },
   // A project's slug comes from its content filename, so renaming the file changes a public URL.
   // `/projects/mcpgauntlet` was live, crawled, and linked from a vulnerability report sent to a
   // third-party maintainer; the package was renamed to `mcpgantlet` because PyPI refused the old
