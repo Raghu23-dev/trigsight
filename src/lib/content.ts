@@ -6,14 +6,20 @@
  * boundary, meaning no page or derivation can accidentally publish one.
  */
 import {
+  footer as allFooter,
+  nav as allNav,
   notes as allNotes,
+  pages as allPages,
   projects as allProjects,
+  skills as allSkillGroups,
   work as allWork,
 } from "../../.velite/index";
 
 export type Work = (typeof allWork)[number];
 export type Project = (typeof allProjects)[number];
 export type Note = (typeof allNotes)[number];
+export type Page = (typeof allPages)[number];
+export type SkillGroup = (typeof allSkillGroups)[number];
 
 export const work: Work[] = allWork
   .filter((w) => !w.draft)
@@ -27,10 +33,64 @@ export const projects: Project[] = allProjects
   .filter((p) => !p.draft)
   .sort((a, b) => a.order - b.order);
 
+export const pages: Page[] = allPages.filter((p) => !p.draft);
+
+export const skills: SkillGroup[] = allSkillGroups
+  .filter((s) => !s.draft)
+  .sort((a, b) => a.order - b.order);
+
+// Singletons: exactly one document per collection, unwrapped for ergonomic access.
+// `allNav`/`allFooter` are arrays because every Velite collection is, but there is
+// never more than one nav.mdx or footer.mdx.
+export const nav = allNav[0]!;
+export const footer = allFooter[0]!;
+
 export function workBySlug(slug: string): Work | undefined {
   return work.find((w) => w.id === `work/${slug}`);
 }
 
 export function projectBySlug(slug: string): Project | undefined {
   return projects.find((p) => p.id === `projects/${slug}`);
+}
+
+export function pageBySlug(slug: string): Page | undefined {
+  return pages.find((p) => p.id === slug);
+}
+
+export interface ChatDocument {
+  readonly id: string;
+  readonly title: string;
+  readonly path: string;
+  readonly raw: string;
+}
+
+/**
+ * Every collection whose documents are chat-indexable: array-shaped, with
+ * `{ id, title, path, raw, draft }`. `nav`/`footer` are singletons with a
+ * different shape entirely and are never part of this map — there is nothing to
+ * exclude, they were never eligible. A new prose collection becomes chat-indexed
+ * the moment it is added here; nothing in `route.ts` needs to change.
+ */
+const CHAT_COLLECTIONS = {
+  work: allWork,
+  projects: allProjects,
+  notes: allNotes,
+  pages: allPages,
+  skills: allSkillGroups,
+};
+
+export function allChatDocuments(): ChatDocument[] {
+  return Object.values(CHAT_COLLECTIONS).flatMap((docs) =>
+    (
+      docs as ReadonlyArray<{
+        draft: boolean;
+        id: string;
+        title: string;
+        path: string;
+        raw: string;
+      }>
+    )
+      .filter((d) => !d.draft)
+      .map((d) => ({ id: d.id, title: d.title, path: d.path, raw: d.raw })),
+  );
 }
