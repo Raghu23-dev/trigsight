@@ -110,6 +110,97 @@ const notes = defineCollection({
     .transform((d) => ({ ...d, path: `/${d.slug}`, id: d.slug })),
 });
 
+/**
+ * Singular pages that render at bespoke routes, not `/pages/[slug]`. Matched at the
+ * content root (not a subdirectory) so the file layout mirrors the route layout the
+ * same way every other collection does — except `home`, which is deliberately
+ * special: the homepage route is `/`, not `/home`. Both the transform below and
+ * `bench/citations/verify.ts`'s independent path derivation special-case exactly
+ * that one slug; nothing else needs it.
+ */
+const pages = defineCollection({
+  name: "Page",
+  pattern: "*.mdx",
+  schema: s
+    .object({
+      title: s.string().max(80),
+      summary: s.string().max(200),
+      eyebrow: s.string().max(80).optional(),
+      headline: s.string().max(120).optional(),
+      draft: s.boolean().default(false),
+      body: s.mdx(),
+      raw: s.raw(),
+      slug: s.path(),
+    })
+    .transform((d) => ({
+      ...d,
+      id: d.slug,
+      path: d.slug === "home" ? "/" : `/${d.slug}`,
+    })),
+});
+
+/**
+ * One file per taxonomy category, replacing the hardcoded array in
+ * `src/lib/skills.ts`. `items` are the chip labels rendered verbatim in the UI;
+ * `body` is short authored prose so the category is chat-citable — a bare chip
+ * label like "FastAPI" is too short to pass the citation gate's minimum passage
+ * length (24 characters).
+ */
+const skills = defineCollection({
+  name: "SkillGroup",
+  pattern: "skills/**/*.mdx",
+  schema: s
+    .object({
+      title: s.string().max(60),
+      items: s.array(s.string()).default([]),
+      order: s.number().default(99),
+      draft: s.boolean().default(false),
+      body: s.mdx(),
+      raw: s.raw(),
+      slug: s.path(),
+    })
+    .transform((d) => ({ ...d, path: `/${d.slug}`, id: d.slug })),
+});
+
+/**
+ * Nav and footer link data. Frontmatter-only — no body, no citations, because
+ * there is no prose to cite. Excluded from the chat corpus by construction:
+ * `content.ts` never includes these in the array-shaped, citable-document union
+ * the corpus builder reads, because their document shape doesn't have one.
+ */
+const nav = defineCollection({
+  name: "Nav",
+  pattern: "chrome/nav.mdx",
+  schema: s.object({
+    primaryLinks: s.array(
+      s.object({ label: s.string(), href: s.string(), order: s.number() }),
+    ),
+    contactLinks: s.array(
+      s.object({
+        label: s.string(),
+        href: s.string(),
+        external: s.boolean().default(false),
+        hiddenOnMobile: s.boolean().default(false),
+        variant: s.enum(["link", "button"]).default("link"),
+      }),
+    ),
+  }),
+});
+
+const footer = defineCollection({
+  name: "Footer",
+  pattern: "chrome/footer.mdx",
+  schema: s.object({
+    links: s.array(
+      s.object({
+        label: s.string(),
+        href: s.string(),
+        external: s.boolean().default(false),
+      }),
+    ),
+  }),
+});
+
 export default defineConfig({
   root: "content",
   output: {
@@ -118,7 +209,7 @@ export default defineConfig({
     base: "/static/",
     clean: true,
   },
-  collections: { work, projects, notes },
+  collections: { work, projects, notes, pages, skills, nav, footer },
   mdx: {
     // No raw HTML in content: the chat renders markdown through a sanitiser, and
     // allowing HTML here would create two different trust models for one source.

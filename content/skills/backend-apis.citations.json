@@ -1,0 +1,6 @@
+[
+  {
+    "docId": "skills/backend-apis",
+    "passage": "FastAPI services exposing REST, GraphQL and gRPC, with SSE streaming"
+  }
+]

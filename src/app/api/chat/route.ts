@@ -1,7 +1,7 @@
 import { chunkDocument, type Chunk } from "../../../lib/retrieval/chunk";
 import { LocalTrigramBackend, Retriever } from "../../../lib/retrieval/retrieve";
 import { upstashFromEnv } from "../../../lib/retrieval/upstash";
-import { projects, work } from "../../../lib/content";
+import { allChatDocuments } from "../../../lib/content";
 
 /**
  * Grounded chat.
@@ -41,7 +41,7 @@ function getRetriever(): Retriever {
   // Projects and work share one corpus. Omitting projects would leave the chat unable to answer
   // about the only work on the site a reader can independently verify — and it would answer
   // anyway, from the employer pages, which is worse than saying nothing.
-  for (const d of [...projects, ...work]) {
+  for (const d of allChatDocuments()) {
     chunks.push(
       ...chunkDocument({ docId: d.id, docTitle: d.title, path: d.path, body: d.raw }),
     );

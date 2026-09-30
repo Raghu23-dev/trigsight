@@ -42,7 +42,7 @@ function loadDocuments(): DocumentInput[] {
     const id = relative(CONTENT_DIR, file).replace(/\.mdx?$/, "");
     return {
       id,
-      path: `/${id}`,
+      path: id === "home" ? "/" : `/${id}`,
       title: fm.title ?? id,
       body,
     };

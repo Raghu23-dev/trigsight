@@ -1,4 +1,8 @@
 import Link from "next/link";
+import { nav } from "../lib/content";
+
+const linkClass =
+  "font-mono text-2xs uppercase tracking-[0.14em] text-fg-muted transition-colors hover:text-fg";
 
 /**
  * Site header.
@@ -9,20 +13,12 @@ import Link from "next/link";
  * in globals.css already assumed a fixed-height header (5rem) for anchor scrolling;
  * this is that header, sized to match.
  *
- * No client JS: it's a server component that wraps at small widths rather than
- * hiding behind a toggle, so a mobile visitor never spends a tap to see the contact
- * links that are the entire point of this component existing.
+ * Link data lives in `content/chrome/nav.mdx`, not here — this component only knows
+ * how to render a primary link and a contact link, in either of its two variants.
  */
-const NAV_LINKS = [
-  { href: "/projects", label: "Projects" },
-  { href: "/about", label: "About" },
-  { href: "/ask", label: "Ask" },
-];
-
-const linkClass =
-  "font-mono text-2xs uppercase tracking-[0.14em] text-fg-muted transition-colors hover:text-fg";
-
 export function Header() {
+  const primaryLinks = [...nav.primaryLinks].sort((a, b) => a.order - b.order);
+
   return (
     <header
       className="sticky top-0 z-40 h-20 border-b border-border bg-bg/85 backdrop-blur"
@@ -49,7 +45,7 @@ export function Header() {
         </Link>
 
         <nav aria-label="Primary" className="flex flex-wrap items-center gap-x-5 gap-y-1">
-          {NAV_LINKS.map((l) => (
+          {primaryLinks.map((l) => (
             <Link key={l.href} href={l.href} transitionTypes={["nav-forward"]} className={linkClass}>
               {l.label}
             </Link>
@@ -57,23 +53,27 @@ export function Header() {
         </nav>
 
         <div className="flex shrink-0 items-center gap-4">
-          <a href="https://github.com/Raghu23-dev" className={linkClass} target="_blank" rel="noreferrer">
-            GitHub
-          </a>
-          <a
-            href="https://linkedin.com/in/raghuram-p"
-            className={`${linkClass} hidden sm:inline`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            LinkedIn
-          </a>
-          <a
-            href="/static/resume.pdf"
-            className="rounded border border-border bg-surface px-3 py-1.5 font-mono text-2xs uppercase tracking-wider text-fg-muted transition-colors hover:border-accent-dim hover:text-fg"
-          >
-            Résumé
-          </a>
+          {nav.contactLinks.map((l) => {
+            const hideClass = l.hiddenOnMobile ? "hidden sm:inline" : "";
+            const externalAttrs = l.external ? { target: "_blank", rel: "noreferrer" } : {};
+            if (l.variant === "button") {
+              return (
+                <a
+                  key={l.href}
+                  href={l.href}
+                  {...externalAttrs}
+                  className={`${hideClass} rounded border border-border bg-surface px-3 py-1.5 font-mono text-2xs uppercase tracking-wider text-fg-muted transition-colors hover:border-accent-dim hover:text-fg`}
+                >
+                  {l.label}
+                </a>
+              );
+            }
+            return (
+              <a key={l.href} href={l.href} {...externalAttrs} className={`${linkClass} ${hideClass}`}>
+                {l.label}
+              </a>
+            );
+          })}
         </div>
       </div>
     </header>

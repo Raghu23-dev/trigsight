@@ -2,8 +2,8 @@ import { ViewTransition } from "react";
 import Link from "next/link";
 import { Scene } from "../components/scene";
 import { Reveal } from "../components/reveal";
-import { projects, work } from "../lib/content";
-import { skillGroups } from "../lib/skills";
+import { MDX } from "../components/mdx";
+import { pageBySlug, projects, skills, work } from "../lib/content";
 import { PAGE_TRANSITION } from "../lib/page-transition";
 import allowlist from "../generated/citation-allowlist.json";
 import payload from "../generated/payload.json";
@@ -29,17 +29,23 @@ export default function Home() {
       </div>
 
       <header>
-        <p className="font-mono text-2xs uppercase tracking-[0.2em] text-fg-subtle">
-          Raghuram P · GenAI Full-Stack Engineer
-        </p>
-        <h1 className="mt-6 max-w-3xl font-display text-4xl leading-[1.05] tracking-tight text-fg">
-          I build the AI tools other engineers build with.
-        </h1>
-        <p className="mt-6 max-w-2xl text-lg leading-relaxed text-fg-muted">
-          Multi-agent orchestration, hybrid retrieval and real-time streaming
-          backbones — shipped to production and used daily across enterprise
-          environments.
-        </p>
+        {(() => {
+          const home = pageBySlug("home");
+          if (!home) throw new Error("content/home.mdx is missing");
+          return (
+            <>
+              <p className="font-mono text-2xs uppercase tracking-[0.2em] text-fg-subtle">
+                {home.eyebrow}
+              </p>
+              <h1 className="mt-6 max-w-3xl font-display text-4xl leading-[1.05] tracking-tight text-fg">
+                {home.headline}
+              </h1>
+              <div className="mt-6 max-w-2xl">
+                <MDX code={home.body} />
+              </div>
+            </>
+          );
+        })()}
       </header>
 
       <section
@@ -159,11 +165,11 @@ export default function Home() {
           Skills
         </h2>
         <div className="mt-8 space-y-6">
-          {skillGroups.map((group, i) => (
-            <Reveal key={group.category} delayMs={i * 40}>
+          {skills.map((group, i) => (
+            <Reveal key={group.id} delayMs={i * 40}>
               <div className="flex flex-col gap-3 sm:flex-row sm:gap-6">
                 <h3 className="w-40 shrink-0 font-mono text-2xs uppercase tracking-wider text-fg-subtle">
-                  {group.category}
+                  {group.title}
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {group.items.map((item) => (
